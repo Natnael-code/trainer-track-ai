@@ -31,9 +31,19 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+# UI & Presentation
   cupertino_icons: ^1.0.8
+  intl: ^0.19.0 # For formatting dates and monthly cycles
+  
+  # State Management & Architecture
+  provider: ^6.1.2 # To handle UI state changes across screens
+
+  # Data & Media Management (The Hybrid Storage tools)
+  path_provider: ^2.1.3 # To locate local device application storage directories
+  image_picker: ^1.1.2 # To capture progress photos using the built-in camera
+  flutter_image_compress: ^2.3.0 # To compress photos down to <200KB before storing
+  # The following adds the Cupertino Icons font to your application.
+  
 
 dev_dependencies:
   flutter_test:
