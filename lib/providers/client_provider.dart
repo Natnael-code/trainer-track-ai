@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
 import '../models/client_model.dart';
+import '../services/database_service.dart';
 
 class ClientProvider with ChangeNotifier {
-  // Direct internal memory tracker for active clients
-  final List<ClientModel> _clients = [];
+  List<ClientModel> _clients = [];
 
-  // Expose the list to the UI without allowing direct external manipulation
   List<ClientModel> get clients => [..._clients];
 
-  // Calculated Business Intelligence Metrics for our Dashboard Status Cards
   int get totalActiveClients =>
       _clients.where((c) => c.status == 'active').length;
 
-  // Function to insert a freshly registered client profile
-  void addClient(ClientModel newClient) {
-    _clients.add(newClient);
-
-    // CRITICAL: Tells Flutter to redraw any screen listening to this data
+  // Pull records out of SQLite storage database on launch
+  Future<void> loadClientsFromDatabase() async {
+    _clients = await DatabaseService.instance.fetchAllClients();
     notifyListeners();
+  }
+
+  // Push new client details cleanly down into persistent storage hardware
+  Future<void> addClient(ClientModel newClient) async {
+    await DatabaseService.instance.insertClient(newClient);
+    _clients.add(newClient);
+    notifyListeners();
+  }
+
+  // Trigger file compilation for security export transfers
+  Future<void> backupData() async {
+    await DatabaseService.instance.exportDatabaseBackup();
   }
 }
