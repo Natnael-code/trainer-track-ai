@@ -1,12 +1,11 @@
 import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/client_model.dart';
+import '../models/fitness_models.dart'; // Ensure this import points to your fitness models file
 
 class DatabaseService {
-  // Singleton pattern architecture
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
@@ -22,10 +21,14 @@ class DatabaseService {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _onUpgradeDB,
+    );
   }
 
-  // Define SQL Schema Table on first creation execution
   Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE clients (
@@ -43,12 +46,57 @@ class DatabaseService {
         experienceLevel TEXT NOT NULL,
         lifestyleType TEXT NOT NULL,
         joinedDate TEXT NOT NULL,
+        status TEXT NOT NULL,
+        groupId TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE groups (
+        id TEXT PRIMARY KEY,
+        groupName TEXT NOT NULL,
+        createdDate TEXT NOT NULL,
         status TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE schedules (
+        id TEXT PRIMARY KEY,
+        clientId TEXT,
+        groupId TEXT,
+        dayNumber INTEGER NOT NULL,
+        isWorkDay INTEGER NOT NULL,
+        monthConfigId TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE workout_plans (
+        id TEXT PRIMARY KEY,
+        dayScheduleId TEXT NOT NULL,
+        routineName TEXT NOT NULL,
+        exercisesJson TEXT NOT NULL
       )
     ''');
   }
 
-  // --- CRUD FUNCTIONS ---
+  Future _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE clients ADD COLUMN groupId TEXT;');
+      await db.execute(
+        'CREATE TABLE groups (id TEXT PRIMARY KEY, groupName TEXT NOT NULL, createdDate TEXT NOT NULL, status TEXT NOT NULL);',
+      );
+      await db.execute(
+        'CREATE TABLE schedules (id TEXT PRIMARY KEY, clientId TEXT, groupId TEXT, dayNumber INTEGER NOT NULL, isWorkDay INTEGER NOT NULL, monthConfigId TEXT NOT NULL);',
+      );
+      await db.execute(
+        'CREATE TABLE workout_plans (id TEXT PRIMARY KEY, dayScheduleId TEXT NOT NULL, routineName TEXT NOT NULL, exercisesJson TEXT NOT NULL);',
+      );
+    }
+  }
+
+  // --- CLIENTS CRUD OPERATIONS ---
 
   Future<void> insertClient(ClientModel client) async {
     final db = await instance.database;
@@ -68,12 +116,13 @@ class DatabaseService {
       'lifestyleType': client.lifestyleType,
       'joinedDate': client.joinedDate.toIso8601String(),
       'status': client.status,
+      'groupId': null,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<ClientModel>> fetchAllClients() async {
     final db = await instance.database;
-    final orderBy = 'name ASC';
+    const orderBy = 'name ASC';
     final result = await db.query('clients', orderBy: orderBy);
 
     return result
@@ -84,9 +133,11 @@ class DatabaseService {
             phoneNumber: json['phoneNumber'] as String,
             age: json['age'] as int,
             gender: json['gender'] as String,
-            startingWeight: json['startingWeight'] as double,
-            height: json['height'] as double,
-            startingBodyFat: json['startingBodyFat'] as double?,
+            startingWeight: (json['startingWeight'] as num).toDouble(),
+            height: (json['height'] as num).toDouble(),
+            startingBodyFat: json['startingBodyFat'] != null
+                ? (json['startingBodyFat'] as num).toDouble()
+                : null,
             localProfileImagePath: json['localProfileImagePath'] as String?,
             injuries: json['injuries'] as String,
             medicalConditions: json['medicalConditions'] as String,
@@ -99,18 +150,76 @@ class DatabaseService {
         .toList();
   }
 
-  // --- DATA SAFETY PROTOCOL: BACKUP ENGINE ---
+  // --- SCHEDULE & WORKOUT PLAN ENGINE Operations ---
 
+  Future<void> saveMonthlySchedule({
+    required List<ScheduleDayModel> days,
+    required List<WorkoutPlanModel> plans,
+  }) async {
+    final db = await instance.database;
+    final batch = db.batch();
+
+    for (var day in days) {
+      batch.insert(
+        'schedules',
+        day.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    for (var plan in plans) {
+      batch.insert(
+        'workout_plans',
+        plan.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<ScheduleDayModel>> fetchScheduleForEntity({
+    String? clientId,
+    String? groupId,
+    required String monthConfigId,
+  }) async {
+    final db = await instance.database;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'schedules',
+      where: clientId != null
+          ? 'clientId = ? AND monthConfigId = ?'
+          : 'groupId = ? AND monthConfigId = ?',
+      whereArgs: clientId != null
+          ? [clientId, monthConfigId]
+          : [groupId, monthConfigId],
+      orderBy: 'dayNumber ASC',
+    );
+
+    return maps.map((map) => ScheduleDayModel.fromMap(map)).toList();
+  }
+
+  Future<WorkoutPlanModel?> fetchWorkoutPlanForDay(String dayScheduleId) async {
+    final db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'workout_plans',
+      where: 'dayScheduleId = ?',
+      whereArgs: [dayScheduleId],
+    );
+
+    if (maps.isEmpty) return null;
+    return WorkoutPlanModel.fromMap(maps.first);
+  }
+
+  // --- DATA SAFETY EXPORT ---
   Future<void> exportDatabaseBackup() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'trainer_track.db');
     final dbFile = File(path);
-
     if (await dbFile.exists()) {
-      // Open Android native share sheet allowing transmission to Google Drive, Telegram, Email, etc.
       await Share.shareXFiles([
         XFile(path),
-      ], text: 'TrainerTrack AI System Safety Backup File (Keep Secure)');
+      ], text: 'TrainerTrack AI Security Snapshot');
     }
   }
-}
+} // <--- Class properly locked here now!
