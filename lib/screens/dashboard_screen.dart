@@ -3,9 +3,30 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/client_provider.dart';
 import '../models/client_model.dart';
+import 'add_schedule_screen.dart'; // Import the schedule builder screen
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,6 +34,9 @@ class DashboardScreen extends StatelessWidget {
     final String formattedDate = DateFormat('EEEE, MMMM d').format(now);
 
     return Scaffold(
+      backgroundColor: const Color(
+        0xFF0F172A,
+      ), // Deep futuristic slate background
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -20,6 +44,7 @@ class DashboardScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
+
               // 1. Custom Header Layout
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -43,27 +68,23 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   GestureDetector(
                     onTap: () async {
-                      // Fire off the backup sharing engine protocol sequence safely
                       await Provider.of<ClientProvider>(
                         context,
                         listen: false,
                       ).backupData();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Exporting Database Security Snapshot...',
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Exporting Database Security Snapshot...',
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                     },
-                    child: CircleAvatar(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                      child: const Icon(
-                        Icons.shield,
-                        color: Colors.white,
-                      ), // Changed icon to shield for clarity
+                    child: const CircleAvatar(
+                      backgroundColor: Color(0xFF1E293B),
+                      child: Icon(Icons.shield, color: Colors.blueAccent),
                     ),
                   ),
                 ],
@@ -78,77 +99,106 @@ class DashboardScreen extends StatelessWidget {
                       Expanded(
                         child: _buildMetricCard(
                           context: context,
-                          title: 'Active Roster',
+                          title: 'Active Clients',
                           value: '${clientProvider.totalActiveClients}',
-                          icon: Icons.group,
-                          color: const Color(0xFF3B82F6), // Vibrant blue
+                          icon: Icons.person,
+                          color: const Color(0xFF3B82F6),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildMetricCard(
                           context: context,
-                          title: 'Compliance',
-                          value: '100%', // hardcoded dummy metric for phase 1
-                          icon: Icons.assignment_turned_in,
-                          color: const Color(0xFF10B981), // Emerald green
+                          title: 'Active Groups',
+                          value:
+                              '3', // Dynamic or placeholder value depending on group tracking
+                          icon: Icons.hub,
+                          color: const Color(0xFF10B981),
                         ),
                       ),
                     ],
                   );
                 },
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
-              // 3. Client Section Label
-              const Text(
-                'Active Clients',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white70,
+              // 3. Futuristic Neon Segmented Tab Bar Selector
+              Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF3B82F6),
+                  ),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.grey[400],
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  tabs: const [
+                    Tab(text: 'Personal Clients'),
+                    Tab(text: 'Training Groups'),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
 
-              // 4. Dynamic Client Index List
+              // 4. Dual-Tab Content Windows
               Expanded(
-                child: Consumer<ClientProvider>(
-                  builder: (context, clientProvider, child) {
-                    final clientList = clientProvider.clients;
-
-                    if (clientList.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.fitness_center,
-                              size: 48,
-                              color: Colors.grey[700],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No clients registered yet.\nTap the button below to add your first client!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      itemCount: clientList.length,
-                      itemBuilder: (context, index) {
-                        final client = clientList[index];
-                        return _buildClientListItem(context, client);
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // --- TAB 1: INDIVIDUAL CLIENTS LIST ---
+                    Consumer<ClientProvider>(
+                      builder: (context, clientProvider, child) {
+                        final clientList = clientProvider.clients;
+                        if (clientList.isEmpty) {
+                          return _buildEmptyState(
+                            'No personal clients assigned.',
+                          );
+                        }
+                        return ListView.builder(
+                          itemCount: clientList.length,
+                          itemBuilder: (context, index) {
+                            return _buildWideItemCard(
+                              context,
+                              clientList[index],
+                            );
+                          },
+                        );
                       },
-                    );
-                  },
+                    ),
+
+                    // --- TAB 2: TRAINING GROUPS LIST ---
+                    ListView(
+                      children: [
+                        _buildWideGroupCard(
+                          context,
+                          'Morning Elite Shred',
+                          '8 Members',
+                          'July 2026 Assigned',
+                        ),
+                        _buildWideGroupCard(
+                          context,
+                          'Calisthenics Advanced',
+                          '5 Members',
+                          'No Plan Configured',
+                        ),
+                        _buildWideGroupCard(
+                          context,
+                          'Hypertrophy Pool B',
+                          '12 Members',
+                          'July 2026 Assigned',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -156,10 +206,8 @@ class DashboardScreen extends StatelessWidget {
         ),
       ),
 
-      // 5. Action Floating Action Button
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigational hook for registration screen layout to be wired in next step
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Navigation link to registration form'),
@@ -183,7 +231,7 @@ class DashboardScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B), // Matches our deep slate background
+        color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white10),
       ),
@@ -207,48 +255,149 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // Helper Widget for individual Client List Tiles
-  Widget _buildClientListItem(BuildContext context, ClientModel client) {
-    return Card(
-      color: const Color(0xFF1E293B),
+  // Horizontally wide, medium-height card for personal clients
+  Widget _buildWideItemCard(BuildContext context, ClientModel client) {
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Colors.white10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
       ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.grey[800],
-          backgroundImage: client.localProfileImagePath != null
-              ? Uri.parse(client.localProfileImagePath!).isAbsolute
-                    ? NetworkImage(client.localProfileImagePath!)
-                    : const AssetImage('assets/images/placeholder.png')
-                          as ImageProvider
-              : null,
-          child: client.localProfileImagePath == null
-              ? const Icon(Icons.person, color: Colors.white70)
-              : null,
-        ),
-        title: Text(
-          client.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.grey[800],
+            child: const Icon(Icons.person, color: Colors.white70),
           ),
-        ),
-        subtitle: Text(
-          'BMI: ${client.bmi.toStringAsFixed(1)} | ${client.experienceLevel}',
-          style: TextStyle(color: Colors.grey[400]),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white30),
-        onTap: () {
-          // Open Detailed progression profile
-        },
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  client.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'BMI: ${client.bmi.toStringAsFixed(1)} • ${client.experienceLevel}',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          // Interactive Shortcut Calendar Engine Hook Button
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+            tooltip: 'Setup Monthly Schedule',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddScheduleScreen(
+                    clientId: client.id,
+                    entityName: client.name,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
-  // Dynamic greeting generator script
+  // Horizontally wide, medium-height card for tracking training groups
+  Widget _buildWideGroupCard(
+    BuildContext context,
+    String groupName,
+    String sizeText,
+    String statusMessage,
+  ) {
+    bool isAssigned = statusMessage.contains('Assigned');
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 26,
+            backgroundColor: Color(0xFF312E81),
+            child: Icon(Icons.hub, color: Colors.indigoAccent),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  groupName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$sizeText • $statusMessage',
+                  style: TextStyle(
+                    color: isAssigned ? const Color(0xFF10B981) : Colors.amber,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.indigoAccent),
+            tooltip: 'Setup Group Schedule',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddScheduleScreen(
+                    groupId: groupName.toLowerCase().replaceAll(' ', '_'),
+                    entityName: groupName,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String sub) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.fitness_center, size: 48, color: Colors.grey[700]),
+          const SizedBox(height: 12),
+          Text(
+            sub,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[500], fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getGreetingText(int hour) {
     if (hour < 12) return 'Good Morning, Coach';
     if (hour < 17) return 'Good Afternoon, Coach';

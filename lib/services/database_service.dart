@@ -3,7 +3,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/client_model.dart';
-import '../models/fitness_models.dart'; // Ensure this import points to your fitness models file
+import '../models/fitness_models.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
@@ -12,12 +13,22 @@ class DatabaseService {
   DatabaseService._init();
 
   Future<Database> get database async {
+    // On web, we cannot use the native _database instance at all
+    if (kIsWeb) {
+      throw UnsupportedError('Native database access is disabled on Web.');
+    }
     if (_database != null) return _database!;
     _database = await _initDB('trainer_track.db');
     return _database!;
   }
 
   Future<Database> _initDB(String filePath) async {
+    // Return a dummy database initialization if web engine is intercepted early
+    if (kIsWeb) {
+      return _database!;
+    }
+
+    // Mobile native path execution
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
@@ -99,6 +110,8 @@ class DatabaseService {
   // --- CLIENTS CRUD OPERATIONS ---
 
   Future<void> insertClient(ClientModel client) async {
+    if (kIsWeb) return; // Safely bypass database write operations on Chrome
+
     final db = await instance.database;
     await db.insert('clients', {
       'id': client.id,
@@ -121,6 +134,42 @@ class DatabaseService {
   }
 
   Future<List<ClientModel>> fetchAllClients() async {
+    // If running on web, supply synthetic data structures directly to view the layout layers
+    if (kIsWeb) {
+      return [
+        ClientModel(
+          id: 'web_client_1',
+          name: 'Alex Mercer',
+          phoneNumber: '+251911223344',
+          age: 24,
+          gender: 'Male',
+          startingWeight: 78.5,
+          height: 1.75,
+          experienceLevel: 'Intermediate',
+          lifestyleType: 'Active',
+          injuries: 'None',
+          medicalConditions: 'None',
+          joinedDate: DateTime.now(),
+          status: 'Active',
+        ),
+        ClientModel(
+          id: 'web_client_2',
+          name: 'Sara Connor',
+          phoneNumber: '+251922334455',
+          age: 22,
+          gender: 'Female',
+          startingWeight: 62.0,
+          height: 1.68,
+          experienceLevel: 'Advanced',
+          lifestyleType: 'Sedentary',
+          injuries: 'Knee Discomfort',
+          medicalConditions: 'Asthma',
+          joinedDate: DateTime.now(),
+          status: 'Active',
+        ),
+      ];
+    }
+
     final db = await instance.database;
     const orderBy = 'name ASC';
     final result = await db.query('clients', orderBy: orderBy);
@@ -156,6 +205,8 @@ class DatabaseService {
     required List<ScheduleDayModel> days,
     required List<WorkoutPlanModel> plans,
   }) async {
+    if (kIsWeb) return; // Prevent batch insertion loop failures on web
+
     final db = await instance.database;
     final batch = db.batch();
 
@@ -183,6 +234,8 @@ class DatabaseService {
     String? groupId,
     required String monthConfigId,
   }) async {
+    if (kIsWeb) return []; // Fallback array configuration for browser execution
+
     final db = await instance.database;
 
     final List<Map<String, dynamic>> maps = await db.query(
@@ -200,6 +253,8 @@ class DatabaseService {
   }
 
   Future<WorkoutPlanModel?> fetchWorkoutPlanForDay(String dayScheduleId) async {
+    if (kIsWeb) return null;
+
     final db = await instance.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'workout_plans',
@@ -213,6 +268,8 @@ class DatabaseService {
 
   // --- DATA SAFETY EXPORT ---
   Future<void> exportDatabaseBackup() async {
+    if (kIsWeb) return;
+
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'trainer_track.db');
     final dbFile = File(path);
@@ -222,4 +279,4 @@ class DatabaseService {
       ], text: 'TrainerTrack AI Security Snapshot');
     }
   }
-} // <--- Class properly locked here now!
+}
