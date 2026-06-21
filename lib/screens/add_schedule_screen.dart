@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/fitness_models.dart';
 import '../services/database_service.dart';
 
@@ -19,73 +20,147 @@ class AddScheduleScreen extends StatefulWidget {
 }
 
 class _AddScheduleScreenState extends State<AddScheduleScreen> {
-  final _formKey = GlobalKey<FormState>();
-  String _selectedMonth = 'July_2026';
-  String _schedulePattern = 'Every Other Day';
+  DateTime _startDate = DateTime.now();
 
-  final TextEditingController _workoutRoutineController = TextEditingController(
-    text:
-        '1. Bench Press: 4x10\n2. Overhead Press: 3x12\n3. Tricep Pushdowns: 4x15',
-  );
-  final TextEditingController _routineNameController = TextEditingController(
-    text: 'Push Day Split',
-  );
+  // Temporary map cache storing configuration changes safely during draft modes
+  final Map<int, bool> _dayWorkStatusMap = {};
+  final Map<int, String> _dayRoutineNameMap = {};
+  final Map<int, String> _dayExercisesMap = {};
 
-  bool _isProcessing = false;
+  bool _isSaving = false;
 
-  void _generateAndSaveSchedule() async {
-    setState(() => _isProcessing = true);
-
-    final List<ScheduleDayModel> generatedDays = [];
-    final List<WorkoutPlanModel> generatedPlans = [];
-    final String baseId = widget.clientId ?? widget.groupId ?? 'unknown';
-
+  @override
+  void initState() {
+    super.initState();
+    // Initialize standard baseline templates for all 30 blocks
     for (int i = 1; i <= 30; i++) {
-      bool isWork = true;
+      _dayWorkStatusMap[i] = true; // Default to active training days
+      _dayRoutineNameMap[i] = 'General Fullbody Split';
+      _dayExercisesMap[i] =
+          '1. Pushups: 3x15\n2. Bodyweight Squats: 3x20\n3. Plank Challenge: 60s';
+    }
+  }
 
-      if (_schedulePattern == 'Every Other Day') {
-        isWork = i % 2 != 0;
-      } else {
-        int cycleDay = i % 7;
-        if (cycleDay == 6 || cycleDay == 0) isWork = false;
-      }
+  void _configureSpecificDayDialog(int dayNum) {
+    final routineCtrl = TextEditingController(text: _dayRoutineNameMap[dayNum]);
+    final exercisesCtrl = TextEditingController(text: _dayExercisesMap[dayNum]);
+    bool isWork = _dayWorkStatusMap[dayNum] ?? true;
 
-      final dayId = '${baseId}_${_selectedMonth}_day_$i';
-
-      generatedDays.add(
-        ScheduleDayModel(
-          id: dayId,
-          clientId: widget.clientId,
-          groupId: widget.groupId,
-          dayNumber: i,
-          isWorkDay: isWork,
-          monthConfigId: _selectedMonth,
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: Text(
+            'Configure Plan: Day $dayNum',
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text(
+                    'Is Active Workout Day',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  value: isWork,
+                  onChanged: (val) => setModalState(() => isWork = val),
+                ),
+                if (isWork) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: routineCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Routine Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: exercisesCtrl,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Target Exercises List',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _dayWorkStatusMap[dayNum] = isWork;
+                  _dayRoutineNameMap[dayNum] = routineCtrl.text.trim();
+                  _dayExercisesMap[dayNum] = exercisesCtrl.text.trim();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Apply Changes'),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _deployFinalizedSchedule() async {
+    setState(() => _isSaving = true);
+
+    final List<ScheduleDayModel> deploymentDays = [];
+    final List<WorkoutPlanModel> deploymentPlans = [];
+    final String entityPrefix = widget.clientId ?? widget.groupId ?? 'entity';
+
+    for (int dayNum = 1; dayNum <= 30; dayNum++) {
+      // Calculate specific calendar date for this relative day milestone
+      final DateTime runningDate = _startDate.add(Duration(days: dayNum - 1));
+      final String dayId =
+          '${entityPrefix}_day_${dayNum}_${_startDate.millisecondsSinceEpoch}';
+
+      final isWork = _dayWorkStatusMap[dayNum] ?? true;
+
+      final dayNode = ScheduleDayModel(
+        id: dayId,
+        clientId: widget.clientId,
+        groupId: widget.groupId,
+        dayNumber: dayNum,
+        isWorkDay: isWork,
+        absoluteDate: runningDate,
+        status: 'Pending',
       );
+      deploymentDays.add(dayNode);
 
       if (isWork) {
-        generatedPlans.add(
-          WorkoutPlanModel(
-            id: 'plan_$dayId',
-            dayScheduleId: dayId,
-            routineName: _routineNameController.text.trim(),
-            exercisesJson: _workoutRoutineController.text.trim(),
-          ),
+        final planNode = WorkoutPlanModel(
+          id: 'plan_$dayId',
+          dayScheduleId: dayId,
+          routineName: _dayRoutineNameMap[dayNum] ?? 'Workout Split',
+          exercisesJson: _dayExercisesMap[dayNum] ?? '',
         );
+        deploymentPlans.add(planNode);
       }
     }
 
     await DatabaseService.instance.saveMonthlySchedule(
-      days: generatedDays,
-      plans: generatedPlans,
+      days: deploymentDays,
+      plans: deploymentPlans,
     );
-
-    setState(() => _isProcessing = false);
+    setState(() => _isSaving = false);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('30-Day Calendar Generated for ${widget.entityName}!'),
+          content: Text(
+            'Custom 30-Day Plan Deployed Live starting ${DateFormat('MMM d').format(_startDate)}!',
+          ),
+          backgroundColor: Colors.green,
         ),
       );
       Navigator.pop(context);
@@ -95,115 +170,166 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        title: Text('Setup Month: ${widget.entityName}'),
+        title: Text(
+          'Build Plan for ${widget.entityName}',
+          style: const TextStyle(fontSize: 16),
+        ),
         backgroundColor: const Color(0xFF0F172A),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Configure Monthly Cycle Blocks',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Calendar anchor selection section
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'PLAN START DATE (DAY 1)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        DateFormat('EEEE, MMMM dd, yyyy').format(_startDate),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                DropdownButtonFormField<String>(
-                  value: _selectedMonth,
-                  decoration: const InputDecoration(
-                    labelText: 'Target Performance Month',
-                    border: OutlineInputBorder(),
+                  TextButton.icon(
+                    icon: const Icon(Icons.calendar_month, size: 18),
+                    label: const Text('Change'),
+                    onPressed: () async {
+                      final chosen = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate,
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 30),
+                        ),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (chosen != null) setState(() => _startDate = chosen);
+                    },
                   ),
-                  items: ['July_2026', 'August_2026', 'September_2026'].map((
-                    m,
-                  ) {
-                    return DropdownMenuItem(
-                      value: m,
-                      child: Text(m.replaceAll('_', ' ')),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => _selectedMonth = val!),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Click any specific box block to write custom exercise targets for that workout day:',
+              style: TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+
+            // Visual day distribution configuration engine board matrix
+            Expanded(
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 5,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
                 ),
-                const SizedBox(height: 16),
+                itemCount: 30,
+                itemBuilder: (context, index) {
+                  final int dayNum = index + 1;
+                  final bool isWork = _dayWorkStatusMap[dayNum] ?? true;
+                  final DateTime calculatedDayDate = _startDate.add(
+                    Duration(days: dayNum - 1),
+                  );
 
-                DropdownButtonFormField<String>(
-                  value: _schedulePattern,
-                  decoration: const InputDecoration(
-                    labelText: 'Rest/Work Day Alternation Split',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ['Every Other Day', '5 Days Work / 2 Rest'].map((p) {
-                    return DropdownMenuItem(value: p, child: Text(p));
-                  }).toList(),
-                  onChanged: (val) => setState(() => _schedulePattern = val!),
-                ),
-                const SizedBox(height: 20),
-
-                const Divider(color: Colors.white),
-                // Syntax issue cleanly resolved here
-                const SizedBox(height: 12),
-
-                const Text(
-                  'Default Work Day Workout Routine Template',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blueAccent,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                TextFormField(
-                  controller: _routineNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Routine Split Identifier Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _workoutRoutineController,
-                  maxLines: 6,
-                  decoration: const InputDecoration(
-                    labelText: 'Exercises List (Sets x Reps)',
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      shape: RoundedRectangleBorder(
+                  return InkWell(
+                    onTap: () => _configureSpecificDayDialog(dayNum),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isWork
+                            ? const Color(0xFF1E293B)
+                            : Colors.red.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isWork
+                              ? Colors.blueAccent.withOpacity(0.4)
+                              : Colors.redAccent.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Day $dayNum',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            DateFormat('MMM d').format(calculatedDayDate),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Icon(
+                            isWork ? Icons.fitness_center : Icons.bed,
+                            size: 12,
+                            color: isWork
+                                ? Colors.blueAccent
+                                : Colors.redAccent,
+                          ),
+                        ],
                       ),
                     ),
-                    onPressed: _isProcessing ? null : _generateAndSaveSchedule,
-                    child: _isProcessing
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Compile & Build 30-Day Plan',
-                            style: TextStyle(fontSize: 16, color: Colors.white),
-                          ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              ],
+                onPressed: _isSaving ? null : _deployFinalizedSchedule,
+                child: _isSaving
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'Deploy Final Routine Grid',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

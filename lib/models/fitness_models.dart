@@ -1,4 +1,4 @@
-// 1. Group Session Model Blueprint
+// 1. Group Model Cluster Blueprint
 class GroupModel {
   final String id;
   final String groupName;
@@ -31,14 +31,16 @@ class GroupModel {
   }
 }
 
-// 2. 30-Day Calendar Management Model
+// 2. Rolling 30-Day Fitness Schedule Track Node
 class ScheduleDayModel {
   final String id;
-  final String? clientId; // Nullable if assigned to a Group
-  final String? groupId; // Nullable if assigned to an Individual
-  final int dayNumber; // Day 1 to Day 30
-  final bool isWorkDay; // true = Workout, false = Rest Day
-  final String monthConfigId; // e.g., "June_2026"
+  final String? clientId;
+  final String? groupId;
+  final int dayNumber; // Strictly Day 1 to Day 30
+  final bool isWorkDay; // true = Active Workout, false = Dedicated Rest Day
+  final DateTime
+  absoluteDate; // Calculated rolling calendar milestone matching Day X
+  final String status; // 'Pending', 'Completed', 'Missed'
 
   ScheduleDayModel({
     required this.id,
@@ -46,7 +48,8 @@ class ScheduleDayModel {
     this.groupId,
     required this.dayNumber,
     required this.isWorkDay,
-    required this.monthConfigId,
+    required this.absoluteDate,
+    this.status = 'Pending',
   });
 
   Map<String, dynamic> toMap() {
@@ -55,8 +58,9 @@ class ScheduleDayModel {
       'clientId': clientId,
       'groupId': groupId,
       'dayNumber': dayNumber,
-      'isWorkDay': isWorkDay ? 1 : 0, // SQLite uses 1/0 for booleans
-      'monthConfigId': monthConfigId,
+      'isWorkDay': isWorkDay ? 1 : 0,
+      'absoluteDate': absoluteDate.toIso8601String(),
+      'status': status,
     };
   }
 
@@ -67,18 +71,18 @@ class ScheduleDayModel {
       groupId: map['groupId'] as String?,
       dayNumber: map['dayNumber'] as int,
       isWorkDay: map['isWorkDay'] == 1,
-      monthConfigId: map['monthConfigId'] as String,
+      absoluteDate: DateTime.parse(map['absoluteDate'] as String),
+      status: map['status'] ?? 'Pending',
     );
   }
 }
 
-// 3. Daily Workout Routine Model
+// 3. Isolated Single-Day Custom Target Workout Plan
 class WorkoutPlanModel {
   final String id;
-  final String dayScheduleId; // Links directly to a ScheduleDayModel
-  final String routineName; // e.g., "Push Day Upper Body"
-  final String
-  exercisesJson; // Structured workout details stored cleanly as a raw string text
+  final String dayScheduleId;
+  final String routineName; // e.g., "Leg Day Quads Focus"
+  final String exercisesJson; // Custom exercise text or bullets for this day
 
   WorkoutPlanModel({
     required this.id,

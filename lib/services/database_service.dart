@@ -10,10 +10,59 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
+  // --- WEB MEMORY FALLBACK STORAGE SNAPSHOTS ---
+  static final List<ClientModel> _webClientsCache = [
+    ClientModel(
+      id: 'web_client_1',
+      name: 'Alex Mercer',
+      phoneNumber: '+251911223344',
+      age: 24,
+      gender: 'Male',
+      startingWeight: 78.5,
+      height: 175.0,
+      experienceLevel: 'Intermediate',
+      lifestyleType: 'Active',
+      injuries: 'None',
+      medicalConditions: 'None',
+      joinedDate: DateTime.now(),
+      status: 'active',
+    ),
+    ClientModel(
+      id: 'web_client_2',
+      name: 'Sara Connor',
+      phoneNumber: '+251922334455',
+      age: 22,
+      gender: 'Female',
+      startingWeight: 62.0,
+      height: 168.0,
+      experienceLevel: 'Advanced',
+      lifestyleType: 'Sedentary',
+      injuries: 'Knee Discomfort',
+      medicalConditions: 'Asthma',
+      joinedDate: DateTime.now(),
+      status: 'active',
+    ),
+  ];
+
+  static final List<GroupModel> _webGroupsCache = [
+    GroupModel(
+      id: 'morning_elite_shred',
+      groupName: 'Morning Elite Shred',
+      createdDate: DateTime.now(),
+    ),
+    GroupModel(
+      id: 'calisthenics_advanced',
+      groupName: 'Calisthenics Advanced',
+      createdDate: DateTime.now(),
+    ),
+  ];
+
+  static final List<ScheduleDayModel> _webSchedulesCache = [];
+  static final List<WorkoutPlanModel> _webWorkoutPlansCache = [];
+
   DatabaseService._init();
 
   Future<Database> get database async {
-    // On web, we cannot use the native _database instance at all
     if (kIsWeb) {
       throw UnsupportedError('Native database access is disabled on Web.');
     }
@@ -23,18 +72,13 @@ class DatabaseService {
   }
 
   Future<Database> _initDB(String filePath) async {
-    // Return a dummy database initialization if web engine is intercepted early
-    if (kIsWeb) {
-      return _database!;
-    }
-
-    // Mobile native path execution
+    if (kIsWeb) return _database!;
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 4, // Bumped to handle absoluteDate architecture safely
       onCreate: _createDB,
       onUpgrade: _onUpgradeDB,
     );
@@ -78,7 +122,8 @@ class DatabaseService {
         groupId TEXT,
         dayNumber INTEGER NOT NULL,
         isWorkDay INTEGER NOT NULL,
-        monthConfigId TEXT NOT NULL
+        absoluteDate TEXT NOT NULL,
+        status TEXT NOT NULL
       )
     ''');
 
@@ -93,25 +138,22 @@ class DatabaseService {
   }
 
   Future _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute('ALTER TABLE clients ADD COLUMN groupId TEXT;');
-      await db.execute(
-        'CREATE TABLE groups (id TEXT PRIMARY KEY, groupName TEXT NOT NULL, createdDate TEXT NOT NULL, status TEXT NOT NULL);',
-      );
-      await db.execute(
-        'CREATE TABLE schedules (id TEXT PRIMARY KEY, clientId TEXT, groupId TEXT, dayNumber INTEGER NOT NULL, isWorkDay INTEGER NOT NULL, monthConfigId TEXT NOT NULL);',
-      );
-      await db.execute(
-        'CREATE TABLE workout_plans (id TEXT PRIMARY KEY, dayScheduleId TEXT NOT NULL, routineName TEXT NOT NULL, exercisesJson TEXT NOT NULL);',
-      );
+    if (oldVersion < 4) {
+      try {
+        await db.execute(
+          'ALTER TABLE schedules ADD COLUMN absoluteDate TEXT NOT NULL DEFAULT "";',
+        );
+      } catch (_) {}
     }
   }
 
-  // --- CLIENTS CRUD OPERATIONS ---
-
+  // --- CLIENTS OPERATIONS ---
   Future<void> insertClient(ClientModel client) async {
-    if (kIsWeb) return; // Safely bypass database write operations on Chrome
-
+    if (kIsWeb) {
+      _webClientsCache.removeWhere((c) => c.id == client.id);
+      _webClientsCache.add(client);
+      return;
+    }
     final db = await instance.database;
     await db.insert('clients', {
       'id': client.id,
@@ -129,51 +171,16 @@ class DatabaseService {
       'lifestyleType': client.lifestyleType,
       'joinedDate': client.joinedDate.toIso8601String(),
       'status': client.status,
-      'groupId': null,
+      'groupId': client.id.contains('_group_')
+          ? client.id.split('_group_')[1]
+          : null,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<ClientModel>> fetchAllClients() async {
-    // If running on web, supply synthetic data structures directly to view the layout layers
-    if (kIsWeb) {
-      return [
-        ClientModel(
-          id: 'web_client_1',
-          name: 'Alex Mercer',
-          phoneNumber: '+251911223344',
-          age: 24,
-          gender: 'Male',
-          startingWeight: 78.5,
-          height: 1.75,
-          experienceLevel: 'Intermediate',
-          lifestyleType: 'Active',
-          injuries: 'None',
-          medicalConditions: 'None',
-          joinedDate: DateTime.now(),
-          status: 'Active',
-        ),
-        ClientModel(
-          id: 'web_client_2',
-          name: 'Sara Connor',
-          phoneNumber: '+251922334455',
-          age: 22,
-          gender: 'Female',
-          startingWeight: 62.0,
-          height: 1.68,
-          experienceLevel: 'Advanced',
-          lifestyleType: 'Sedentary',
-          injuries: 'Knee Discomfort',
-          medicalConditions: 'Asthma',
-          joinedDate: DateTime.now(),
-          status: 'Active',
-        ),
-      ];
-    }
-
+    if (kIsWeb) return _webClientsCache;
     final db = await instance.database;
-    const orderBy = 'name ASC';
-    final result = await db.query('clients', orderBy: orderBy);
-
+    final result = await db.query('clients', orderBy: 'name ASC');
     return result
         .map(
           (json) => ClientModel(
@@ -199,17 +206,47 @@ class DatabaseService {
         .toList();
   }
 
-  // --- SCHEDULE & WORKOUT PLAN ENGINE Operations ---
+  // --- GROUPS OPERATIONS ---
+  Future<void> insertGroup(GroupModel group) async {
+    if (kIsWeb) {
+      _webGroupsCache.removeWhere((g) => g.id == group.id);
+      _webGroupsCache.add(group);
+      return;
+    }
+    final db = await instance.database;
+    await db.insert(
+      'groups',
+      group.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
 
+  Future<List<GroupModel>> fetchAllGroups() async {
+    if (kIsWeb) return _webGroupsCache;
+    final db = await instance.database;
+    final result = await db.query('groups', orderBy: 'groupName ASC');
+    return result.map((map) => GroupModel.fromMap(map)).toList();
+  }
+
+  // --- CALENDAR GRID ENGINE ACTIONS ---
   Future<void> saveMonthlySchedule({
     required List<ScheduleDayModel> days,
     required List<WorkoutPlanModel> plans,
   }) async {
-    if (kIsWeb) return; // Prevent batch insertion loop failures on web
+    if (kIsWeb) {
+      for (var day in days) {
+        _webSchedulesCache.removeWhere((d) => d.id == day.id);
+        _webSchedulesCache.add(day);
+      }
+      for (var plan in plans) {
+        _webWorkoutPlansCache.removeWhere((p) => p.id == plan.id);
+        _webWorkoutPlansCache.add(plan);
+      }
+      return;
+    }
 
     final db = await instance.database;
     final batch = db.batch();
-
     for (var day in days) {
       batch.insert(
         'schedules',
@@ -217,7 +254,6 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
-
     for (var plan in plans) {
       batch.insert(
         'workout_plans',
@@ -225,58 +261,84 @@ class DatabaseService {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
-
     await batch.commit(noResult: true);
+  }
+
+  Future<void> updateScheduleDayStatus(String dayId, String status) async {
+    if (kIsWeb) {
+      final index = _webSchedulesCache.indexWhere((d) => d.id == dayId);
+      if (index != -1) {
+        final current = _webSchedulesCache[index];
+        _webSchedulesCache[index] = ScheduleDayModel(
+          id: current.id,
+          clientId: current.clientId,
+          groupId: current.groupId,
+          dayNumber: current.dayNumber,
+          isWorkDay: current.isWorkDay,
+          absoluteDate: current.absoluteDate,
+          status: status,
+        );
+      }
+      return;
+    }
+    final db = await instance.database;
+    await db.update(
+      'schedules',
+      {'status': status},
+      where: 'id = ?',
+      whereArgs: [dayId],
+    );
   }
 
   Future<List<ScheduleDayModel>> fetchScheduleForEntity({
     String? clientId,
     String? groupId,
-    required String monthConfigId,
   }) async {
-    if (kIsWeb) return []; // Fallback array configuration for browser execution
+    if (kIsWeb) {
+      return _webSchedulesCache
+          .where(
+            (d) =>
+                (clientId != null && d.clientId == clientId) ||
+                (groupId != null && d.groupId == groupId),
+          )
+          .toList()
+        ..sort((a, b) => a.dayNumber.compareTo(b.dayNumber));
+    }
 
     final db = await instance.database;
-
     final List<Map<String, dynamic>> maps = await db.query(
       'schedules',
-      where: clientId != null
-          ? 'clientId = ? AND monthConfigId = ?'
-          : 'groupId = ? AND monthConfigId = ?',
-      whereArgs: clientId != null
-          ? [clientId, monthConfigId]
-          : [groupId, monthConfigId],
+      where: clientId != null ? 'clientId = ?' : 'groupId = ?',
+      whereArgs: clientId != null ? [clientId] : [groupId],
       orderBy: 'dayNumber ASC',
     );
-
     return maps.map((map) => ScheduleDayModel.fromMap(map)).toList();
   }
 
   Future<WorkoutPlanModel?> fetchWorkoutPlanForDay(String dayScheduleId) async {
-    if (kIsWeb) return null;
-
+    if (kIsWeb) {
+      final matches = _webWorkoutPlansCache.where(
+        (p) => p.dayScheduleId == dayScheduleId,
+      );
+      return matches.isEmpty ? null : matches.first;
+    }
     final db = await instance.database;
     final List<Map<String, dynamic>> maps = await db.query(
       'workout_plans',
       where: 'dayScheduleId = ?',
       whereArgs: [dayScheduleId],
     );
-
     if (maps.isEmpty) return null;
     return WorkoutPlanModel.fromMap(maps.first);
   }
 
-  // --- DATA SAFETY EXPORT ---
   Future<void> exportDatabaseBackup() async {
     if (kIsWeb) return;
-
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'trainer_track.db');
     final dbFile = File(path);
     if (await dbFile.exists()) {
-      await Share.shareXFiles([
-        XFile(path),
-      ], text: 'TrainerTrack AI Security Snapshot');
+      await Share.shareXFiles([XFile(path)], text: 'TrainerTrack AI Snapshot');
     }
   }
 }

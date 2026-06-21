@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/client_provider.dart';
 import '../models/client_model.dart';
-import 'add_schedule_screen.dart'; // Import the schedule builder screen
+import '../models/fitness_models.dart';
+import 'add_schedule_screen.dart';
+import 'month_calendar_view_screen.dart'; // We will create this next
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -28,15 +30,242 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
+  void _showAddClientDialog() {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final ageCtrl = TextEditingController();
+    final weightCtrl = TextEditingController();
+    final heightCtrl = TextEditingController();
+    String expLevel = 'Beginner';
+    String lifestyle = 'Sedentary';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+            left: 16,
+            right: 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Register New Personal Client',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: ageCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Age',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: weightCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Weight (kg)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: heightCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Height (cm)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: expLevel,
+                  decoration: const InputDecoration(
+                    labelText: 'Experience Level',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Beginner', 'Intermediate', 'Advanced']
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (v) => setModalState(() => expLevel = v!),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: lifestyle,
+                  decoration: const InputDecoration(
+                    labelText: 'Lifestyle Matrix',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Sedentary', 'Active']
+                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                      .toList(),
+                  onChanged: (v) => setModalState(() => lifestyle = v!),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                    ),
+                    onPressed: () {
+                      if (nameCtrl.text.isEmpty) return;
+                      final client = ClientModel(
+                        id: 'client_${DateTime.now().millisecondsSinceEpoch}',
+                        name: nameCtrl.text.trim(),
+                        phoneNumber: phoneCtrl.text.trim(),
+                        age: int.tryParse(ageCtrl.text) ?? 25,
+                        gender: 'Male',
+                        startingWeight:
+                            double.tryParse(weightCtrl.text) ?? 70.0,
+                        height: double.tryParse(heightCtrl.text) ?? 175.0,
+                        injuries: 'None',
+                        medicalConditions: 'None',
+                        experienceLevel: expLevel,
+                        lifestyleType: lifestyle,
+                        joinedDate: DateTime.now(),
+                      );
+                      Provider.of<ClientProvider>(
+                        context,
+                        listen: false,
+                      ).addClient(client);
+                      Navigator.pop(context);
+                    },
+                    child: const Text(
+                      'Save Client Profiles',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddGroupDialog() {
+    final groupNameCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          top: 20,
+          left: 16,
+          right: 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Form Corporate Training Group',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: groupNameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Group Workspace Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () {
+                  if (groupNameCtrl.text.isEmpty) return;
+                  final group = GroupModel(
+                    id: 'group_${DateTime.now().millisecondsSinceEpoch}',
+                    groupName: groupNameCtrl.text.trim(),
+                    createdDate: DateTime.now(),
+                  );
+                  Provider.of<ClientProvider>(
+                    context,
+                    listen: false,
+                  ).addGroup(group);
+                  Navigator.pop(context);
+                },
+                child: const Text(
+                  'Initialize Cluster Group',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final DateTime now = DateTime.now();
     final String formattedDate = DateFormat('EEEE, MMMM d').format(now);
+    final clientProvider = Provider.of<ClientProvider>(context);
 
     return Scaffold(
-      backgroundColor: const Color(
-        0xFF0F172A,
-      ), // Deep futuristic slate background
+      backgroundColor: const Color(0xFF0F172A),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -44,8 +273,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-
-              // 1. Custom Header Layout
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -67,21 +294,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
                   GestureDetector(
-                    onTap: () async {
-                      await Provider.of<ClientProvider>(
-                        context,
-                        listen: false,
-                      ).backupData();
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Exporting Database Security Snapshot...',
-                            ),
-                          ),
-                        );
-                      }
-                    },
+                    onTap: () => clientProvider.backupData(),
                     child: const CircleAvatar(
                       backgroundColor: Color(0xFF1E293B),
                       child: Icon(Icons.shield, color: Colors.blueAccent),
@@ -90,39 +303,28 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ],
               ),
               const SizedBox(height: 24),
-
-              // 2. Business Analytics Layer (KPI Cards)
-              Consumer<ClientProvider>(
-                builder: (context, clientProvider, child) {
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricCard(
-                          context: context,
-                          title: 'Active Clients',
-                          value: '${clientProvider.totalActiveClients}',
-                          icon: Icons.person,
-                          color: const Color(0xFF3B82F6),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildMetricCard(
-                          context: context,
-                          title: 'Active Groups',
-                          value:
-                              '3', // Dynamic or placeholder value depending on group tracking
-                          icon: Icons.hub,
-                          color: const Color(0xFF10B981),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: 'Active Clients',
+                      value: '${clientProvider.totalActiveClients}',
+                      icon: Icons.person,
+                      color: const Color(0xFF3B82F6),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricCard(
+                      title: 'Active Groups',
+                      value: '${clientProvider.totalActiveGroups}',
+                      icon: Icons.hub,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
-
-              // 3. Futuristic Neon Segmented Tab Bar Selector
               Container(
                 height: 50,
                 decoration: BoxDecoration(
@@ -137,10 +339,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.grey[400],
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
                   tabs: const [
                     Tab(text: 'Personal Clients'),
                     Tab(text: 'Training Groups'),
@@ -148,56 +346,30 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
               const SizedBox(height: 16),
-
-              // 4. Dual-Tab Content Windows
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    // --- TAB 1: INDIVIDUAL CLIENTS LIST ---
-                    Consumer<ClientProvider>(
-                      builder: (context, clientProvider, child) {
-                        final clientList = clientProvider.clients;
-                        if (clientList.isEmpty) {
-                          return _buildEmptyState(
-                            'No personal clients assigned.',
-                          );
-                        }
-                        return ListView.builder(
-                          itemCount: clientList.length,
-                          itemBuilder: (context, index) {
-                            return _buildWideItemCard(
+                    clientProvider.clients.isEmpty
+                        ? _buildEmptyState('No personal clients assigned.')
+                        : ListView.builder(
+                            itemCount: clientProvider.clients.length,
+                            itemBuilder: (context, idx) => _buildWideItemCard(
                               context,
-                              clientList[index],
-                            );
-                          },
-                        );
-                      },
-                    ),
-
-                    // --- TAB 2: TRAINING GROUPS LIST ---
-                    ListView(
-                      children: [
-                        _buildWideGroupCard(
-                          context,
-                          'Morning Elite Shred',
-                          '8 Members',
-                          'July 2026 Assigned',
-                        ),
-                        _buildWideGroupCard(
-                          context,
-                          'Calisthenics Advanced',
-                          '5 Members',
-                          'No Plan Configured',
-                        ),
-                        _buildWideGroupCard(
-                          context,
-                          'Hypertrophy Pool B',
-                          '12 Members',
-                          'July 2026 Assigned',
-                        ),
-                      ],
-                    ),
+                              clientProvider.clients[idx],
+                            ),
+                          ),
+                    clientProvider.groups.isEmpty
+                        ? _buildEmptyState(
+                            'No active training groups configured.',
+                          )
+                        : ListView.builder(
+                            itemCount: clientProvider.groups.length,
+                            itemBuilder: (context, idx) => _buildWideGroupCard(
+                              context,
+                              clientProvider.groups[idx],
+                            ),
+                          ),
                   ],
                 ),
               ),
@@ -205,24 +377,21 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Navigation link to registration form'),
-            ),
-          );
+          if (_tabController.index == 0) {
+            _showAddClientDialog();
+          } else {
+            _showAddGroupDialog();
+          }
         },
         backgroundColor: const Color(0xFF3B82F6),
-        child: const Icon(Icons.person_add_alt_1, color: Colors.white),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  // Helper Widget for Metric Cards
   Widget _buildMetricCard({
-    required BuildContext context,
     required String title,
     required String value,
     required IconData icon,
@@ -255,7 +424,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // Horizontally wide, medium-height card for personal clients
   Widget _buildWideItemCard(BuildContext context, ClientModel client) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -274,54 +442,54 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  client.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'BMI: ${client.bmi.toStringAsFixed(1)} • ${client.experienceLevel}',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          // Interactive Shortcut Calendar Engine Hook Button
-          IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
-            tooltip: 'Setup Monthly Schedule',
-            onPressed: () {
-              Navigator.push(
+            child: GestureDetector(
+              onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AddScheduleScreen(
+                  builder: (context) => MonthCalendarViewScreen(
                     clientId: client.id,
                     entityName: client.name,
                   ),
                 ),
-              );
-            },
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    client.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'BMI: ${client.bmi.toStringAsFixed(1)} • ${client.experienceLevel}',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddScheduleScreen(
+                  clientId: client.id,
+                  entityName: client.name,
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Horizontally wide, medium-height card for tracking training groups
-  Widget _buildWideGroupCard(
-    BuildContext context,
-    String groupName,
-    String sizeText,
-    String statusMessage,
-  ) {
-    bool isAssigned = statusMessage.contains('Assigned');
+  Widget _buildWideGroupCard(BuildContext context, GroupModel group) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -339,42 +507,50 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  groupName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MonthCalendarViewScreen(
+                    groupId: group.id,
+                    entityName: group.groupName,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$sizeText • $statusMessage',
-                  style: TextStyle(
-                    color: isAssigned ? const Color(0xFF10B981) : Colors.amber,
-                    fontSize: 12,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    group.groupName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shared Performance Sync Stream',
+                    style: TextStyle(
+                      color: Colors.indigoAccent[100],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.calendar_month, color: Colors.indigoAccent),
-            tooltip: 'Setup Group Schedule',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddScheduleScreen(
-                    groupId: groupName.toLowerCase().replaceAll(' ', '_'),
-                    entityName: groupName,
-                  ),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddScheduleScreen(
+                  groupId: group.id,
+                  entityName: group.groupName,
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ],
       ),
