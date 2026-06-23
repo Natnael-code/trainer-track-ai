@@ -105,7 +105,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                 SwitchListTile(
                   title: const Text(
                     'Is Active Work Day',
-                    style: TextStyle(fontSize: 14),
+                    style: TextStyle(fontSize: 14, color: Colors.white),
                   ),
                   value: localWorkToggle,
                   onChanged: (val) =>
@@ -115,29 +115,50 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: routineCtrl,
+                    style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
                       labelText: 'Routine Header Label',
+                      labelStyle: TextStyle(color: Colors.white70),
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: exercisesCtrl,
+                    style: const TextStyle(color: Colors.white),
                     maxLines: 4,
                     decoration: const InputDecoration(
                       labelText: 'Exercise Routines Engine',
+                      labelStyle: TextStyle(color: Colors.white70),
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: currentStatus,
+                    initialValue:
+                        [
+                          'Pending',
+                          'Completed',
+                          'Missed',
+                        ].contains(currentStatus)
+                        ? currentStatus
+                        : 'Pending',
+                    dropdownColor: const Color(0xFF1E293B),
                     decoration: const InputDecoration(
                       labelText: 'Execution Status Flag',
+                      labelStyle: TextStyle(color: Colors.white70),
                       border: OutlineInputBorder(),
                     ),
                     items: ['Pending', 'Completed', 'Missed']
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(
+                              s,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setModalState(() => currentStatus = v!),
                   ),
@@ -197,8 +218,12 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        title: Text('${widget.entityName}\'s Ledger'),
+        title: Text(
+          '${widget.entityName}\'s Ledger',
+          style: const TextStyle(color: Colors.white),
+        ),
         backgroundColor: const Color(0xFF0F172A),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

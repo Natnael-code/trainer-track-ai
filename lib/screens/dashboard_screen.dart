@@ -5,7 +5,7 @@ import '../providers/client_provider.dart';
 import '../models/client_model.dart';
 import '../models/fitness_models.dart';
 import 'add_schedule_screen.dart';
-import 'month_calendar_view_screen.dart'; // We will create this next
+import 'month_calendar_view_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -70,6 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 const SizedBox(height: 16),
                 TextField(
                   controller: nameCtrl,
+                  style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Full Name',
                     border: OutlineInputBorder(),
@@ -78,6 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 const SizedBox(height: 12),
                 TextField(
                   controller: phoneCtrl,
+                  style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     labelText: 'Phone Number',
                     border: OutlineInputBorder(),
@@ -89,6 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Expanded(
                       child: TextField(
                         controller: ageCtrl,
+                        style: const TextStyle(color: Colors.white),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'Age',
@@ -100,6 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Expanded(
                       child: TextField(
                         controller: weightCtrl,
+                        style: const TextStyle(color: Colors.white),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'Weight (kg)',
@@ -111,6 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Expanded(
                       child: TextField(
                         controller: heightCtrl,
+                        style: const TextStyle(color: Colors.white),
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'Height (cm)',
@@ -122,25 +127,43 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: expLevel,
+                  initialValue: expLevel,
+                  dropdownColor: const Color(0xFF1E293B),
                   decoration: const InputDecoration(
                     labelText: 'Experience Level',
                     border: OutlineInputBorder(),
                   ),
                   items: ['Beginner', 'Intermediate', 'Advanced']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(
+                            e,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (v) => setModalState(() => expLevel = v!),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: lifestyle,
+                  initialValue: lifestyle,
+                  dropdownColor: const Color(0xFF1E293B),
                   decoration: const InputDecoration(
                     labelText: 'Lifestyle Matrix',
                     border: OutlineInputBorder(),
                   ),
                   items: ['Sedentary', 'Active']
-                      .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                      .map(
+                        (l) => DropdownMenuItem(
+                          value: l,
+                          child: Text(
+                            l,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (v) => setModalState(() => lifestyle = v!),
                 ),
@@ -221,6 +244,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             const SizedBox(height: 16),
             TextField(
               controller: groupNameCtrl,
+              style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
                 labelText: 'Group Workspace Name',
                 border: OutlineInputBorder(),
@@ -333,6 +357,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
                 child: TabBar(
                   controller: _tabController,
+                  indicatorSize: TabBarIndicatorSize.tab,
                   indicator: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     color: const Color(0xFF3B82F6),

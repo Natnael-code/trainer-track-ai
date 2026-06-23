@@ -33,7 +33,6 @@ class ClientProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Links an existing individual client into a shared community cluster group
   Future<void> assignClientToGroup(String clientId, String groupId) async {
     final clientIndex = _clients.indexWhere((c) => c.id == clientId);
     if (clientIndex != -1) {
@@ -54,6 +53,7 @@ class ClientProvider with ChangeNotifier {
         lifestyleType: currentClient.lifestyleType,
         joinedDate: currentClient.joinedDate,
         status: currentClient.status,
+        groupId: groupId, // Assigned to shared group context
       );
 
       await DatabaseService.instance.insertClient(updatedClient);

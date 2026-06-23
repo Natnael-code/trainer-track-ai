@@ -191,9 +191,7 @@ class DatabaseService {
             gender: json['gender'] as String,
             startingWeight: (json['startingWeight'] as num).toDouble(),
             height: (json['height'] as num).toDouble(),
-            startingBodyFat: json['startingBodyFat'] != null
-                ? (json['startingBodyFat'] as num).toDouble()
-                : null,
+            startingBodyFat: json['startingBodyFat']?.toString(),
             localProfileImagePath: json['localProfileImagePath'] as String?,
             injuries: json['injuries'] as String,
             medicalConditions: json['medicalConditions'] as String,

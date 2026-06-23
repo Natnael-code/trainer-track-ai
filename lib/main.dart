@@ -4,12 +4,11 @@ import 'providers/client_provider.dart';
 import 'screens/dashboard_screen.dart';
 
 void main() async {
-  // Ensures Flutter environment dependencies are locked before database spin up
   WidgetsFlutterBinding.ensureInitialized();
 
   final clientProvider = ClientProvider();
-  await clientProvider
-      .loadClientsFromDatabase(); // Boot loading local data engine
+  // Safe initial database background payload loading before bootstrapping application paint layout cycles
+  await clientProvider.loadClientsFromDatabase();
 
   runApp(
     MultiProvider(
@@ -18,7 +17,6 @@ void main() async {
     ),
   );
 }
-// Keep rest of TrainerTrackApp structure identical...
 
 class TrainerTrackApp extends StatelessWidget {
   const TrainerTrackApp({super.key});
@@ -34,12 +32,9 @@ class TrainerTrackApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(
-          0xFF0F172A,
-        ), // Premium rich midnight slate base black
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
       ),
-      home:
-          const DashboardScreen(), // Sets the dashboard screen as the entry layout
+      home: const DashboardScreen(),
     );
   }
 }
