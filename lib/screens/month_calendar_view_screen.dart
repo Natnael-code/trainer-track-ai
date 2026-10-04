@@ -305,7 +305,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // Active Plan Notification Banner
+                  // Requirement 3: Active Plan Deployed Notification Banner without duplicate edit button text
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
@@ -316,39 +316,18 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                       border: Border.all(color: Colors.green),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_outline,
-                              color: Colors.greenAccent,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Active Plan Deployed (${_days.length} Days)',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
+                        const Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.greenAccent,
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AddScheduleScreen(
-                                clientId: widget.clientId,
-                                groupId: widget.groupId,
-                                entityName: widget.entityName,
-                              ),
-                            ),
-                          ).then((_) => _loadCalendarStream()),
-                          child: const Text(
-                            'Edit Plan',
-                            style: TextStyle(color: Colors.blueAccent),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Active Plan Deployed (${_days.length} Days)',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
                         ),
                       ],

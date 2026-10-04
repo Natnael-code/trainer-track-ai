@@ -23,6 +23,20 @@ class ClientProvider with ChangeNotifier {
 
   Future<void> addClient(ClientModel newClient) async {
     await DatabaseService.instance.insertClient(newClient);
+
+    // Automatically save initial registration step as the first progress entry with photo
+    final initialProgress = ClientProgressModel(
+      id: 'progress_init_${newClient.id}',
+      clientId: newClient.id,
+      weight: newClient.startingWeight,
+      height: newClient.height,
+      bmi: newClient.bmi,
+      imagePath: newClient.localProfileImagePath,
+      date: newClient.joinedDate,
+      notes: 'Initial Registration Baseline',
+    );
+    await DatabaseService.instance.insertClientProgress(initialProgress);
+
     _clients.removeWhere((c) => c.id == newClient.id);
     _clients.add(newClient);
     notifyListeners();

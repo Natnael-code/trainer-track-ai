@@ -58,7 +58,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          // Dynamic calculated preview BMI
           double calcWeight = double.tryParse(weightCtrl.text) ?? 70.0;
           double calcHeight = double.tryParse(heightCtrl.text) ?? 175.0;
           double heightMeters = calcHeight / 100.0;
@@ -347,7 +346,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // Requirement 4: Modal to view & add Progress Entry logs for Personal Client
+  // Requirement 1: Progress Window showing Initial Registration photo + changes & Click for Full Details
   void _showClientProgressDialog(ClientModel client) {
     showModalBottomSheet(
       context: context,
@@ -360,7 +359,26 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (context, setModalState) => FutureBuilder<List<ClientProgressModel>>(
           future: DatabaseService.instance.fetchProgressForClient(client.id),
           builder: (context, snapshot) {
-            final progressList = snapshot.data ?? [];
+            List<ClientProgressModel> progressList = [...(snapshot.data ?? [])];
+
+            // Prepend synthesized registration baseline if not present in DB list
+            bool hasInit = progressList.any((p) => p.id.contains('init'));
+            if (!hasInit) {
+              final initialStep = ClientProgressModel(
+                id: 'progress_init_${client.id}',
+                clientId: client.id,
+                weight: client.startingWeight,
+                height: client.height,
+                bmi: client.bmi,
+                imagePath: client.localProfileImagePath,
+                date: client.joinedDate,
+                notes: 'Initial Registration Baseline',
+              );
+              progressList.insert(0, initialStep);
+            }
+
+            // Ensure chronological order so Step 1 is the first saved registration
+            progressList.sort((a, b) => a.date.compareTo(b.date));
 
             return Padding(
               padding: EdgeInsets.only(
@@ -400,6 +418,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Tap any progress step below to view photo and full details:',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
                     const SizedBox(height: 12),
                     Expanded(
                       child: progressList.isEmpty
@@ -413,76 +436,104 @@ class _DashboardScreenState extends State<DashboardScreen>
                               itemCount: progressList.length,
                               itemBuilder: (context, idx) {
                                 final p = progressList[idx];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0F172A),
-                                    borderRadius: BorderRadius.circular(12),
+                                final bool isFirstStep = idx == 0;
+                                final String stepLabel = isFirstStep
+                                    ? 'Step 1: First Saved Registration'
+                                    : 'Step ${idx + 1}: Progress Update';
+
+                                return InkWell(
+                                  onTap: () => _showProgressDetailDialog(
+                                    context,
+                                    p,
+                                    idx + 1,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      p.imagePath != null &&
-                                              p.imagePath!.isNotEmpty &&
-                                              File(p.imagePath!).existsSync()
-                                          ? ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              child: Image.file(
-                                                File(p.imagePath!),
-                                                width: 50,
-                                                height: 50,
-                                                fit: BoxFit.cover,
-                                              ),
-                                            )
-                                          : Container(
-                                              width: 50,
-                                              height: 50,
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 10),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0F172A),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: isFirstStep
+                                            ? Colors.blueAccent.withOpacity(0.5)
+                                            : Colors.white10,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        p.imagePath != null &&
+                                                p.imagePath!.isNotEmpty &&
+                                                File(p.imagePath!).existsSync()
+                                            ? ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(8),
+                                                child: Image.file(
+                                                  File(p.imagePath!),
+                                                  width: 55,
+                                                  height: 55,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              )
+                                            : Container(
+                                                width: 55,
+                                                height: 55,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey[800],
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  isFirstStep
+                                                      ? Icons.app_registration
+                                                      : Icons.show_chart,
+                                                  color: isFirstStep
+                                                      ? Colors.blueAccent
+                                                      : Colors.greenAccent,
+                                                ),
                                               ),
-                                              child: const Icon(
-                                                Icons.show_chart,
-                                                color: Colors.greenAccent,
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                stepLabel,
+                                                style: TextStyle(
+                                                  color: isFirstStep
+                                                      ? Colors.blueAccent
+                                                      : Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
                                               ),
-                                            ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              DateFormat(
-                                                'MMM dd, yyyy',
-                                              ).format(p.date),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                DateFormat(
+                                                  'MMM dd, yyyy',
+                                                ).format(p.date),
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 11,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              'Weight: ${p.weight}kg • Height: ${p.height}cm',
-                                              style: const TextStyle(
-                                                color: Colors.grey,
-                                                fontSize: 12,
+                                              Text(
+                                                'Weight: ${p.weight}kg • Height: ${p.height}cm • BMI: ${p.bmi.toStringAsFixed(1)}',
+                                                style: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 11,
+                                                ),
                                               ),
-                                            ),
-                                            Text(
-                                              'BMI: ${p.bmi.toStringAsFixed(1)}',
-                                              style: const TextStyle(
-                                                color: Colors.greenAccent,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          color: Colors.grey,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 );
                               },
@@ -493,6 +544,173 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  // Detailed view dialog showing photo and all details for any saved progress step
+  void _showProgressDetailDialog(
+    BuildContext context,
+    ClientProgressModel progress,
+    int stepIndex,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                stepIndex == 1
+                    ? 'Step 1: First Saved Registration'
+                    : 'Step $stepIndex: Saved Progress Change',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.grey),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (progress.imagePath != null &&
+                  progress.imagePath!.isNotEmpty &&
+                  File(progress.imagePath!).existsSync())
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(progress.imagePath!),
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(
+                        Icons.image_not_supported,
+                        size: 38,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'No progress photo attached to this step',
+                        style: TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 14),
+              Text(
+                DateFormat('EEEE, MMMM d, yyyy').format(progress.date),
+                style: const TextStyle(
+                  color: Colors.blueAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Weight:',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        Text(
+                          '${progress.weight} kg',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: Colors.white10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Height:',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        Text(
+                          '${progress.height} cm',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: Colors.white10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'BMI:',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        Text(
+                          progress.bmi.toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: Colors.greenAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (progress.notes != null && progress.notes!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Notes:',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  progress.notes!,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

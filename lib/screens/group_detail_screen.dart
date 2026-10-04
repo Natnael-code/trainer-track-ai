@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../models/fitness_models.dart';
 import '../models/client_model.dart';
 import '../providers/client_provider.dart';
@@ -41,6 +42,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     super.dispose();
   }
 
+  bool _isSameDay(DateTime d1, DateTime d2) {
+    return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoadingMembers = true);
     final members = await DatabaseService.instance.fetchClientsForGroup(
@@ -50,16 +55,28 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       groupId: widget.group.id,
     );
 
+    int defaultDayNum = 1;
+    final DateTime now = DateTime.now();
+
+    // Automatically match today's date with current schedule day if found
+    for (var day in schedule) {
+      if (_isSameDay(day.absoluteDate, now)) {
+        defaultDayNum = day.dayNumber;
+        break;
+      }
+    }
+
     setState(() {
       _groupMembers = members;
       _groupSchedule = schedule;
+      _selectedDayNumber = defaultDayNum;
       _isLoadingMembers = false;
     });
 
     _loadAttendanceForSelectedDay();
   }
 
-  // Automatic attendance loader: defaults to Present for active work days
+  // Loads attendance for the selected day from the database
   Future<void> _loadAttendanceForSelectedDay() async {
     if (_groupSchedule.isEmpty) return;
 
@@ -89,14 +106,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         if (found.id.isNotEmpty) {
           _attendanceMap[member.id] = found.status;
         } else {
-          // Auto default to 'Present' if it's a working day
+          // Default to 'Present' for active work days
           _attendanceMap[member.id] = dayNode.isWorkDay ? 'Present' : 'Absent';
         }
       }
     });
   }
 
-  // Requirement 1: Add new member asking ONLY for Name, Phone Number, and Weight
   void _showAddNewGroupMemberDialog() {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -464,42 +480,133 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       );
     }
 
-    int totalDays = _groupSchedule.length;
+    final DateTime now = DateTime.now();
+    final selectedDayNode = _groupSchedule.firstWhere(
+      (d) => d.dayNumber == _selectedDayNumber,
+      orElse: () => _groupSchedule.first,
+    );
+    final bool isSelectedToday = _isSameDay(selectedDayNode.absoluteDate, now);
+
+    int presentCount = _attendanceMap.values
+        .where((v) => v == 'Present')
+        .length;
+    int absentCount = _attendanceMap.values.where((v) => v == 'Absent').length;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                'Select Day:',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Select Day:',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              DropdownButton<int>(
-                value: _selectedDayNumber,
-                dropdownColor: const Color(0xFF1E293B),
-                style: const TextStyle(color: Colors.white),
-                items: List.generate(totalDays, (i) => i + 1).map((dayNum) {
-                  return DropdownMenuItem(
-                    value: dayNum,
-                    child: Text('Day $dayNum'),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedDayNumber = val);
-                    _loadAttendanceForSelectedDay();
-                  }
-                },
-              ),
-            ],
+                DropdownButton<int>(
+                  value: _selectedDayNumber,
+                  dropdownColor: const Color(0xFF1E293B),
+                  style: const TextStyle(color: Colors.white),
+                  items: _groupSchedule.map((dayNode) {
+                    final bool isToday = _isSameDay(dayNode.absoluteDate, now);
+                    final String label =
+                        'Day ${dayNode.dayNumber} (${DateFormat('MMM d').format(dayNode.absoluteDate)})${isToday ? ' [TODAY]' : ''}';
+                    return DropdownMenuItem<int>(
+                      value: dayNode.dayNumber,
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: isToday ? Colors.greenAccent : Colors.white,
+                          fontWeight: isToday
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedDayNumber = val);
+                      _loadAttendanceForSelectedDay();
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+
+          // Header Banner indicating active session vs saved record review
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isSelectedToday
+                  ? Colors.blueAccent.withOpacity(0.15)
+                  : Colors.amber.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isSelectedToday ? Colors.blueAccent : Colors.amber,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isSelectedToday ? Icons.today : Icons.history,
+                  color: isSelectedToday ? Colors.blueAccent : Colors.amber,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isSelectedToday
+                            ? 'Today\'s Attendance Session'
+                            : 'Saved Attendance Record View',
+                        style: TextStyle(
+                          color: isSelectedToday
+                              ? Colors.blueAccent
+                              : Colors.amber,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        DateFormat(
+                          'EEEE, MMMM d, yyyy',
+                        ).format(selectedDayNode.absoluteDate),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'P: $presentCount | A: $absentCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
           Expanded(
             child: ListView.builder(
               itemCount: _groupMembers.length,
@@ -510,7 +617,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+                    horizontal: 14,
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
@@ -520,12 +627,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        member.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            member.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            member.phoneNumber,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
                       SegmentedButton<String>(
                         segments: const [
@@ -553,21 +672,45 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               },
             ),
           ),
+
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigoAccent,
+                backgroundColor: isSelectedToday
+                    ? Colors.blueAccent
+                    : Colors.indigoAccent,
               ),
               onPressed: _isSavingAttendance ? null : _saveAttendance,
               child: _isSavingAttendance
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                      'Save Attendance Record',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                  : RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        children: isSelectedToday
+                            ? const [
+                                TextSpan(
+                                  text: 'Save Today\'s Attendance',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ]
+                            : [
+                                const TextSpan(
+                                  text: 'Update Saved ',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                TextSpan(
+                                  text: 'Day $_selectedDayNumber Record',
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ],
                       ),
                     ),
             ),
