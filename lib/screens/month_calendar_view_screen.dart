@@ -68,147 +68,174 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
     });
   }
 
-  void _showDayDetailsDialog(ScheduleDayModel day) async {
+  // READ-ONLY DISPLAY DIALOG WITH "MARK DONE" ACTION
+  void _showReadOnlyDayDialog(ScheduleDayModel day) async {
     final workoutPlan = await DatabaseService.instance.fetchWorkoutPlanForDay(
       day.id,
     );
-    final routineCtrl = TextEditingController(
-      text:
-          workoutPlan?.routineName ??
-          (day.isWorkDay ? 'Push Day Split' : 'Rest Restorations'),
-    );
-    final exercisesCtrl = TextEditingController(
-      text:
-          workoutPlan?.exercisesJson ??
-          (day.isWorkDay
-              ? '1. Bench Press: 4x10\n2. Skullcrushers: 3x12'
-              : 'No exercise tracks assigned. Enjoy your rest!'),
-    );
-    String currentStatus = day.status;
-    bool localWorkToggle = day.isWorkDay;
+    final String routine =
+        workoutPlan?.routineName ??
+        (day.isWorkDay ? 'Standard Workout Routine' : 'Rest & Recovery Day');
+    final String exercises =
+        workoutPlan?.exercisesJson ??
+        (day.isWorkDay
+            ? 'No exercise list attached.'
+            : 'Rest day! Allow muscles time to rebuild.');
 
     if (!mounted) return;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: Text(
-            'Day ${day.dayNumber} Setup Studio (${DateFormat('MMM d').format(day.absoluteDate)})',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile(
-                  title: const Text(
-                    'Is Active Work Day',
-                    style: TextStyle(fontSize: 14, color: Colors.white),
-                  ),
-                  value: localWorkToggle,
-                  onChanged: (val) =>
-                      setModalState(() => localWorkToggle = val),
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: Row(
+          children: [
+            Icon(
+              day.isWorkDay ? Icons.fitness_center : Icons.bed,
+              color: day.isWorkDay ? Colors.blueAccent : Colors.redAccent,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Day ${day.dayNumber} (${DateFormat('MMM d').format(day.absoluteDate)})',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
                 ),
-                if (localWorkToggle) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: routineCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Routine Header Label',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      border: OutlineInputBorder(),
-                    ),
+                decoration: BoxDecoration(
+                  color: day.isWorkDay ? Colors.blue[900] : Colors.grey[800],
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  day.isWorkDay ? 'WORKOUT DAY' : 'REST DAY',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: exercisesCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Exercise Routines Engine',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Routine Header:',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                routine,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Exercise Targets:',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  exercises,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ),
+              if (day.isWorkDay) ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Text(
+                      'Status: ',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue:
-                        [
-                          'Pending',
-                          'Completed',
-                          'Missed',
-                        ].contains(currentStatus)
-                        ? currentStatus
-                        : 'Pending',
-                    dropdownColor: const Color(0xFF1E293B),
-                    decoration: const InputDecoration(
-                      labelText: 'Execution Status Flag',
-                      labelStyle: TextStyle(color: Colors.white70),
-                      border: OutlineInputBorder(),
+                    Text(
+                      day.status,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: day.status == 'Completed'
+                            ? Colors.greenAccent
+                            : day.status == 'Missed'
+                            ? Colors.redAccent
+                            : Colors.amberAccent,
+                      ),
                     ),
-                    items: ['Pending', 'Completed', 'Missed']
-                        .map(
-                          (s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(
-                              s,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setModalState(() => currentStatus = v!),
-                  ),
-                ],
+                  ],
+                ),
               ],
-            ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.grey)),
+          ),
+          if (day.isWorkDay) ...[
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red[800]),
+              icon: const Icon(Icons.close, size: 16, color: Colors.white),
+              label: const Text(
+                'Mark Missed',
+                style: TextStyle(color: Colors.white),
+              ),
               onPressed: () async {
-                final updatedDay = ScheduleDayModel(
-                  id: day.id,
-                  clientId: day.clientId,
-                  groupId: day.groupId,
-                  dayNumber: day.dayNumber,
-                  isWorkDay: localWorkToggle,
-                  absoluteDate: day.absoluteDate,
-                  status: localWorkToggle ? currentStatus : 'Pending',
-                );
-
-                final updatedPlan = WorkoutPlanModel(
-                  id: 'plan_${day.id}',
-                  dayScheduleId: day.id,
-                  routineName: routineCtrl.text.trim(),
-                  exercisesJson: exercisesCtrl.text.trim(),
-                );
-
-                await DatabaseService.instance.saveMonthlySchedule(
-                  days: [updatedDay],
-                  plans: localWorkToggle ? [updatedPlan] : [],
-                );
-
                 await DatabaseService.instance.updateScheduleDayStatus(
                   day.id,
-                  localWorkToggle ? currentStatus : 'Pending',
+                  'Missed',
                 );
-
-                if (context.mounted) {
+                if (mounted) {
                   Navigator.pop(context);
                   _loadCalendarStream();
                 }
               },
-              child: const Text('Save Day Matrix'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+              ),
+              icon: const Icon(Icons.check, size: 16, color: Colors.white),
+              label: const Text(
+                'Mark Done',
+                style: TextStyle(color: Colors.white),
+              ),
+              onPressed: () async {
+                await DatabaseService.instance.updateScheduleDayStatus(
+                  day.id,
+                  'Completed',
+                );
+                if (mounted) {
+                  Navigator.pop(context);
+                  _loadCalendarStream();
+                }
+              },
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -219,11 +246,27 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
         title: Text(
-          '${widget.entityName}\'s Ledger',
+          '${widget.entityName}\'s Calendar Ledger',
           style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color(0xFF0F172A),
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit_calendar, color: Colors.blueAccent),
+            tooltip: 'Configure / Edit Routine',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddScheduleScreen(
+                  clientId: widget.clientId,
+                  groupId: widget.groupId,
+                  entityName: widget.entityName,
+                ),
+              ),
+            ).then((_) => _loadCalendarStream()),
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -239,7 +282,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'No dynamic schedule initialized yet.',
+                    'No schedule configured yet.',
                     style: TextStyle(color: Colors.white70),
                   ),
                   const SizedBox(height: 12),
@@ -272,7 +315,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                     child: Column(
                       children: [
                         Text(
-                          'Compliance Calculation Matrix: ${_complianceRate.toStringAsFixed(1)}%',
+                          'Compliance Rate: ${_complianceRate.toStringAsFixed(1)}%',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -334,7 +377,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                         }
 
                         return InkWell(
-                          onTap: () => _showDayDetailsDialog(day),
+                          onTap: () => _showReadOnlyDayDialog(day),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             decoration: BoxDecoration(

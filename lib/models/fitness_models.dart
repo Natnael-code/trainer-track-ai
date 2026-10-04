@@ -26,7 +26,7 @@ class GroupModel {
       id: map['id'] as String,
       groupName: map['groupName'] as String,
       createdDate: DateTime.parse(map['createdDate'] as String),
-      status: map['status'] as String,
+      status: map['status'] as String? ?? 'active',
     );
   }
 }
@@ -70,9 +70,9 @@ class ScheduleDayModel {
       clientId: map['clientId'] as String?,
       groupId: map['groupId'] as String?,
       dayNumber: map['dayNumber'] as int,
-      isWorkDay: map['isWorkDay'] == 1,
+      isWorkDay: map['isWorkDay'] == 1 || map['isWorkDay'] == true,
       absoluteDate: DateTime.parse(map['absoluteDate'] as String),
-      status: map['status'] ?? 'Pending',
+      status: map['status'] as String? ?? 'Pending',
     );
   }
 }
@@ -106,6 +106,47 @@ class WorkoutPlanModel {
       dayScheduleId: map['dayScheduleId'] as String,
       routineName: map['routineName'] as String,
       exercisesJson: map['exercisesJson'] as String,
+    );
+  }
+}
+
+// 4. Group Attendance Tracker Node
+class GroupAttendanceModel {
+  final String id;
+  final String groupId;
+  final String dayScheduleId;
+  final String clientId;
+  final String status; // 'Present', 'Absent'
+  final DateTime date;
+
+  GroupAttendanceModel({
+    required this.id,
+    required this.groupId,
+    required this.dayScheduleId,
+    required this.clientId,
+    required this.status,
+    required this.date,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'groupId': groupId,
+      'dayScheduleId': dayScheduleId,
+      'clientId': clientId,
+      'status': status,
+      'date': date.toIso8601String(),
+    };
+  }
+
+  factory GroupAttendanceModel.fromMap(Map<String, dynamic> map) {
+    return GroupAttendanceModel(
+      id: map['id'] as String,
+      groupId: map['groupId'] as String,
+      dayScheduleId: map['dayScheduleId'] as String,
+      clientId: map['clientId'] as String,
+      status: map['status'] as String,
+      date: DateTime.parse(map['date'] as String),
     );
   }
 }

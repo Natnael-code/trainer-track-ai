@@ -23,12 +23,15 @@ class ClientProvider with ChangeNotifier {
 
   Future<void> addClient(ClientModel newClient) async {
     await DatabaseService.instance.insertClient(newClient);
+    // Prevent duplicate entries by clearing existing matching ID
+    _clients.removeWhere((c) => c.id == newClient.id);
     _clients.add(newClient);
     notifyListeners();
   }
 
   Future<void> addGroup(GroupModel newGroup) async {
     await DatabaseService.instance.insertGroup(newGroup);
+    _groups.removeWhere((g) => g.id == newGroup.id);
     _groups.add(newGroup);
     notifyListeners();
   }
@@ -36,28 +39,65 @@ class ClientProvider with ChangeNotifier {
   Future<void> assignClientToGroup(String clientId, String groupId) async {
     final clientIndex = _clients.indexWhere((c) => c.id == clientId);
     if (clientIndex != -1) {
-      final currentClient = _clients[clientIndex];
-      final updatedClient = ClientModel(
-        id: currentClient.id,
-        name: currentClient.name,
-        phoneNumber: currentClient.phoneNumber,
-        age: currentClient.age,
-        gender: currentClient.gender,
-        startingWeight: currentClient.startingWeight,
-        height: currentClient.height,
-        startingBodyFat: currentClient.startingBodyFat,
-        localProfileImagePath: currentClient.localProfileImagePath,
-        injuries: currentClient.injuries,
-        medicalConditions: currentClient.medicalConditions,
-        experienceLevel: currentClient.experienceLevel,
-        lifestyleType: currentClient.lifestyleType,
-        joinedDate: currentClient.joinedDate,
-        status: currentClient.status,
-        groupId: groupId, // Assigned to shared group context
+      final current = _clients[clientIndex];
+      final updated = ClientModel(
+        id: current.id,
+        name: current.name,
+        phoneNumber: current.phoneNumber,
+        age: current.age,
+        gender: current.gender,
+        startingWeight: current.startingWeight,
+        height: current.height,
+        startingBodyFat: current.startingBodyFat,
+        localProfileImagePath: current.localProfileImagePath,
+        injuries: current.injuries,
+        medicalConditions: current.medicalConditions,
+        experienceLevel: current.experienceLevel,
+        lifestyleType: current.lifestyleType,
+        joinedDate: current.joinedDate,
+        status: current.status,
+        groupId: groupId,
+        availableDaysPerWeek: current.availableDaysPerWeek,
+        workoutSessionsPerDay: current.workoutSessionsPerDay,
+        fitnessGoal: current.fitnessGoal,
       );
 
-      await DatabaseService.instance.insertClient(updatedClient);
-      _clients[clientIndex] = updatedClient;
+      await DatabaseService.instance.insertClient(updated);
+      await DatabaseService.instance.addClientToGroup(clientId, groupId);
+      _clients[clientIndex] = updated;
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeClientFromGroup(String clientId, String groupId) async {
+    final clientIndex = _clients.indexWhere((c) => c.id == clientId);
+    if (clientIndex != -1) {
+      final current = _clients[clientIndex];
+      final updated = ClientModel(
+        id: current.id,
+        name: current.name,
+        phoneNumber: current.phoneNumber,
+        age: current.age,
+        gender: current.gender,
+        startingWeight: current.startingWeight,
+        height: current.height,
+        startingBodyFat: current.startingBodyFat,
+        localProfileImagePath: current.localProfileImagePath,
+        injuries: current.injuries,
+        medicalConditions: current.medicalConditions,
+        experienceLevel: current.experienceLevel,
+        lifestyleType: current.lifestyleType,
+        joinedDate: current.joinedDate,
+        status: current.status,
+        groupId: null,
+        availableDaysPerWeek: current.availableDaysPerWeek,
+        workoutSessionsPerDay: current.workoutSessionsPerDay,
+        fitnessGoal: current.fitnessGoal,
+      );
+
+      await DatabaseService.instance.insertClient(updated);
+      await DatabaseService.instance.removeClientFromGroup(clientId, groupId);
+      _clients[clientIndex] = updated;
       notifyListeners();
     }
   }

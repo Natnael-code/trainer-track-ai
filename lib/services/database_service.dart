@@ -10,55 +10,13 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  // --- WEB MEMORY FALLBACK STORAGE SNAPSHOTS ---
-  static final List<ClientModel> _webClientsCache = [
-    ClientModel(
-      id: 'web_client_1',
-      name: 'Alex Mercer',
-      phoneNumber: '+251911223344',
-      age: 24,
-      gender: 'Male',
-      startingWeight: 78.5,
-      height: 175.0,
-      experienceLevel: 'Intermediate',
-      lifestyleType: 'Active',
-      injuries: 'None',
-      medicalConditions: 'None',
-      joinedDate: DateTime.now(),
-      status: 'active',
-    ),
-    ClientModel(
-      id: 'web_client_2',
-      name: 'Sara Connor',
-      phoneNumber: '+251922334455',
-      age: 22,
-      gender: 'Female',
-      startingWeight: 62.0,
-      height: 168.0,
-      experienceLevel: 'Advanced',
-      lifestyleType: 'Sedentary',
-      injuries: 'Knee Discomfort',
-      medicalConditions: 'Asthma',
-      joinedDate: DateTime.now(),
-      status: 'active',
-    ),
-  ];
-
-  static final List<GroupModel> _webGroupsCache = [
-    GroupModel(
-      id: 'morning_elite_shred',
-      groupName: 'Morning Elite Shred',
-      createdDate: DateTime.now(),
-    ),
-    GroupModel(
-      id: 'calisthenics_advanced',
-      groupName: 'Calisthenics Advanced',
-      createdDate: DateTime.now(),
-    ),
-  ];
-
+  // Web memory cache snapshots
+  static final List<ClientModel> _webClientsCache = [];
+  static final List<GroupModel> _webGroupsCache = [];
   static final List<ScheduleDayModel> _webSchedulesCache = [];
   static final List<WorkoutPlanModel> _webWorkoutPlansCache = [];
+  static final List<Map<String, String>> _webGroupMembersCache = [];
+  static final List<GroupAttendanceModel> _webAttendanceCache = [];
 
   DatabaseService._init();
 
@@ -78,7 +36,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 4, // Bumped to handle absoluteDate architecture safely
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _onUpgradeDB,
     );
@@ -94,7 +52,7 @@ class DatabaseService {
         gender TEXT NOT NULL,
         startingWeight REAL NOT NULL,
         height REAL NOT NULL,
-        startingBodyFat REAL,
+        startingBodyFat TEXT,
         localProfileImagePath TEXT,
         injuries TEXT NOT NULL,
         medicalConditions TEXT NOT NULL,
@@ -102,7 +60,10 @@ class DatabaseService {
         lifestyleType TEXT NOT NULL,
         joinedDate TEXT NOT NULL,
         status TEXT NOT NULL,
-        groupId TEXT
+        groupId TEXT,
+        availableDaysPerWeek INTEGER DEFAULT 5,
+        workoutSessionsPerDay INTEGER DEFAULT 1,
+        fitnessGoal TEXT DEFAULT 'Lose Weight'
       )
     ''');
 
@@ -112,6 +73,25 @@ class DatabaseService {
         groupName TEXT NOT NULL,
         createdDate TEXT NOT NULL,
         status TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE group_members (
+        groupId TEXT NOT NULL,
+        clientId TEXT NOT NULL,
+        PRIMARY KEY (groupId, clientId)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE group_attendance (
+        id TEXT PRIMARY KEY,
+        groupId TEXT NOT NULL,
+        dayScheduleId TEXT NOT NULL,
+        clientId TEXT NOT NULL,
+        status TEXT NOT NULL,
+        date TEXT NOT NULL
       )
     ''');
 
@@ -145,9 +125,41 @@ class DatabaseService {
         );
       } catch (_) {}
     }
+    if (oldVersion < 5) {
+      try {
+        await db.execute(
+          'ALTER TABLE clients ADD COLUMN availableDaysPerWeek INTEGER DEFAULT 5;',
+        );
+        await db.execute(
+          'ALTER TABLE clients ADD COLUMN workoutSessionsPerDay INTEGER DEFAULT 1;',
+        );
+        await db.execute(
+          'ALTER TABLE clients ADD COLUMN fitnessGoal TEXT DEFAULT "Lose Weight";',
+        );
+      } catch (_) {}
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS group_members (
+            groupId TEXT NOT NULL,
+            clientId TEXT NOT NULL,
+            PRIMARY KEY (groupId, clientId)
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS group_attendance (
+            id TEXT PRIMARY KEY,
+            groupId TEXT NOT NULL,
+            dayScheduleId TEXT NOT NULL,
+            clientId TEXT NOT NULL,
+            status TEXT NOT NULL,
+            date TEXT NOT NULL
+          )
+        ''');
+      } catch (_) {}
+    }
   }
 
-  // --- CLIENTS OPERATIONS ---
+  // --- CLIENT OPERATIONS ---
   Future<void> insertClient(ClientModel client) async {
     if (kIsWeb) {
       _webClientsCache.removeWhere((c) => c.id == client.id);
@@ -155,56 +167,21 @@ class DatabaseService {
       return;
     }
     final db = await instance.database;
-    await db.insert('clients', {
-      'id': client.id,
-      'name': client.name,
-      'phoneNumber': client.phoneNumber,
-      'age': client.age,
-      'gender': client.gender,
-      'startingWeight': client.startingWeight,
-      'height': client.height,
-      'startingBodyFat': client.startingBodyFat,
-      'localProfileImagePath': client.localProfileImagePath,
-      'injuries': client.injuries,
-      'medicalConditions': client.medicalConditions,
-      'experienceLevel': client.experienceLevel,
-      'lifestyleType': client.lifestyleType,
-      'joinedDate': client.joinedDate.toIso8601String(),
-      'status': client.status,
-      'groupId': client.id.contains('_group_')
-          ? client.id.split('_group_')[1]
-          : null,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'clients',
+      client.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<ClientModel>> fetchAllClients() async {
     if (kIsWeb) return _webClientsCache;
     final db = await instance.database;
     final result = await db.query('clients', orderBy: 'name ASC');
-    return result
-        .map(
-          (json) => ClientModel(
-            id: json['id'] as String,
-            name: json['name'] as String,
-            phoneNumber: json['phoneNumber'] as String,
-            age: json['age'] as int,
-            gender: json['gender'] as String,
-            startingWeight: (json['startingWeight'] as num).toDouble(),
-            height: (json['height'] as num).toDouble(),
-            startingBodyFat: json['startingBodyFat']?.toString(),
-            localProfileImagePath: json['localProfileImagePath'] as String?,
-            injuries: json['injuries'] as String,
-            medicalConditions: json['medicalConditions'] as String,
-            experienceLevel: json['experienceLevel'] as String,
-            lifestyleType: json['lifestyleType'] as String,
-            joinedDate: DateTime.parse(json['joinedDate'] as String),
-            status: json['status'] as String,
-          ),
-        )
-        .toList();
+    return result.map((json) => ClientModel.fromMap(json)).toList();
   }
 
-  // --- GROUPS OPERATIONS ---
+  // --- GROUP OPERATIONS & MEMBERSHIP ---
   Future<void> insertGroup(GroupModel group) async {
     if (kIsWeb) {
       _webGroupsCache.removeWhere((g) => g.id == group.id);
@@ -226,7 +203,112 @@ class DatabaseService {
     return result.map((map) => GroupModel.fromMap(map)).toList();
   }
 
-  // --- CALENDAR GRID ENGINE ACTIONS ---
+  Future<void> addClientToGroup(String clientId, String groupId) async {
+    if (kIsWeb) {
+      _webGroupMembersCache.removeWhere(
+        (m) => m['clientId'] == clientId && m['groupId'] == groupId,
+      );
+      _webGroupMembersCache.add({'groupId': groupId, 'clientId': clientId});
+      return;
+    }
+    final db = await instance.database;
+    await db.insert('group_members', {
+      'groupId': groupId,
+      'clientId': clientId,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    await db.update(
+      'clients',
+      {'groupId': groupId},
+      where: 'id = ?',
+      whereArgs: [clientId],
+    );
+  }
+
+  Future<void> removeClientFromGroup(String clientId, String groupId) async {
+    if (kIsWeb) {
+      _webGroupMembersCache.removeWhere(
+        (m) => m['clientId'] == clientId && m['groupId'] == groupId,
+      );
+      return;
+    }
+    final db = await instance.database;
+    await db.delete(
+      'group_members',
+      where: 'groupId = ? AND clientId = ?',
+      whereArgs: [groupId, clientId],
+    );
+    await db.update(
+      'clients',
+      {'groupId': null},
+      where: 'id = ?',
+      whereArgs: [clientId],
+    );
+  }
+
+  Future<List<ClientModel>> fetchClientsForGroup(String groupId) async {
+    if (kIsWeb) {
+      final memberIds = _webGroupMembersCache
+          .where((m) => m['groupId'] == groupId)
+          .map((m) => m['clientId'])
+          .toSet();
+      return _webClientsCache.where((c) => memberIds.contains(c.id)).toList();
+    }
+    final db = await instance.database;
+    final result = await db.rawQuery(
+      '''
+      SELECT c.* FROM clients c
+      INNER JOIN group_members gm ON c.id = gm.clientId
+      WHERE gm.groupId = ?
+      ORDER BY c.name ASC
+    ''',
+      [groupId],
+    );
+    return result.map((json) => ClientModel.fromMap(json)).toList();
+  }
+
+  // --- ATTENDANCE TRACKING ---
+  Future<void> saveGroupAttendance(List<GroupAttendanceModel> records) async {
+    if (kIsWeb) {
+      for (var r in records) {
+        _webAttendanceCache.removeWhere((a) => a.id == r.id);
+        _webAttendanceCache.add(r);
+      }
+      return;
+    }
+    final db = await instance.database;
+    final batch = db.batch();
+    for (var r in records) {
+      batch.insert(
+        'group_attendance',
+        r.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<GroupAttendanceModel>> fetchAttendanceForDay(
+    String groupId,
+    String dayScheduleId,
+  ) async {
+    if (kIsWeb) {
+      return _webAttendanceCache
+          .where(
+            (a) => a.groupId == groupId && a.dayScheduleId == dayScheduleId,
+          )
+          .toList();
+    }
+    final db = await instance.database;
+    final result = await db.query(
+      'group_attendance',
+      where: 'groupId = ? AND dayScheduleId = ?',
+      whereArgs: [groupId, dayScheduleId],
+    );
+    return result.map((map) => GroupAttendanceModel.fromMap(map)).toList();
+  }
+
+  // --- SCHEDULE & WORKOUT PLAN OPERATIONS ---
   Future<void> saveMonthlySchedule({
     required List<ScheduleDayModel> days,
     required List<WorkoutPlanModel> plans,
@@ -336,7 +418,7 @@ class DatabaseService {
     final path = join(dbPath, 'trainer_track.db');
     final dbFile = File(path);
     if (await dbFile.exists()) {
-      await Share.shareXFiles([XFile(path)], text: 'TrainerTrack AI Snapshot');
+      await Share.shareXFiles([XFile(path)], text: 'TrainerTrack AI Backup');
     }
   }
 }

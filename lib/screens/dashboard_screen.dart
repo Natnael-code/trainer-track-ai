@@ -6,6 +6,7 @@ import '../models/client_model.dart';
 import '../models/fitness_models.dart';
 import 'add_schedule_screen.dart';
 import 'month_calendar_view_screen.dart';
+import 'group_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -36,8 +37,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     final ageCtrl = TextEditingController();
     final weightCtrl = TextEditingController();
     final heightCtrl = TextEditingController();
+
     String expLevel = 'Beginner';
     String lifestyle = 'Sedentary';
+    int availableDays = 5;
+    int sessionsPerDay = 1;
+    String goal = 'Lose Weight';
+
+    bool isSavingClient = false;
 
     showModalBottomSheet(
       context: context,
@@ -125,7 +132,80 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: goal,
+                  dropdownColor: const Color(0xFF1E293B),
+                  decoration: const InputDecoration(
+                    labelText: 'Fitness Goal',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Lose Weight', 'Gain Weight', 'Maintain Weight']
+                      .map(
+                        (g) => DropdownMenuItem(
+                          value: g,
+                          child: Text(
+                            g,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setModalState(() => goal = v!),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: availableDays,
+                        dropdownColor: const Color(0xFF1E293B),
+                        decoration: const InputDecoration(
+                          labelText: 'Days Available/Wk',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: List.generate(7, (i) => i + 1)
+                            .map(
+                              (d) => DropdownMenuItem(
+                                value: d,
+                                child: Text(
+                                  '$d Days',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setModalState(() => availableDays = v!),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        initialValue: sessionsPerDay,
+                        dropdownColor: const Color(0xFF1E293B),
+                        decoration: const InputDecoration(
+                          labelText: 'Sessions/Day',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [1, 2, 3]
+                            .map(
+                              (s) => DropdownMenuItem(
+                                value: s,
+                                child: Text(
+                                  '$s Time(s)',
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setModalState(() => sessionsPerDay = v!),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: expLevel,
                   dropdownColor: const Color(0xFF1E293B),
@@ -146,12 +226,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                       .toList(),
                   onChanged: (v) => setModalState(() => expLevel = v!),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: lifestyle,
                   dropdownColor: const Color(0xFF1E293B),
                   decoration: const InputDecoration(
-                    labelText: 'Lifestyle Matrix',
+                    labelText: 'Lifestyle Type',
                     border: OutlineInputBorder(),
                   ),
                   items: ['Sedentary', 'Active']
@@ -175,33 +255,46 @@ class _DashboardScreenState extends State<DashboardScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,
                     ),
-                    onPressed: () {
-                      if (nameCtrl.text.isEmpty) return;
-                      final client = ClientModel(
-                        id: 'client_${DateTime.now().millisecondsSinceEpoch}',
-                        name: nameCtrl.text.trim(),
-                        phoneNumber: phoneCtrl.text.trim(),
-                        age: int.tryParse(ageCtrl.text) ?? 25,
-                        gender: 'Male',
-                        startingWeight:
-                            double.tryParse(weightCtrl.text) ?? 70.0,
-                        height: double.tryParse(heightCtrl.text) ?? 175.0,
-                        injuries: 'None',
-                        medicalConditions: 'None',
-                        experienceLevel: expLevel,
-                        lifestyleType: lifestyle,
-                        joinedDate: DateTime.now(),
-                      );
-                      Provider.of<ClientProvider>(
-                        context,
-                        listen: false,
-                      ).addClient(client);
-                      Navigator.pop(context);
-                    },
-                    child: const Text(
-                      'Save Client Profiles',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    onPressed: isSavingClient
+                        ? null
+                        : () async {
+                            if (nameCtrl.text.trim().isEmpty) return;
+                            setModalState(() => isSavingClient = true);
+
+                            final client = ClientModel(
+                              id: 'client_${DateTime.now().millisecondsSinceEpoch}',
+                              name: nameCtrl.text.trim(),
+                              phoneNumber: phoneCtrl.text.trim(),
+                              age: int.tryParse(ageCtrl.text) ?? 25,
+                              gender: 'Male',
+                              startingWeight:
+                                  double.tryParse(weightCtrl.text) ?? 70.0,
+                              height: double.tryParse(heightCtrl.text) ?? 175.0,
+                              injuries: 'None',
+                              medicalConditions: 'None',
+                              experienceLevel: expLevel,
+                              lifestyleType: lifestyle,
+                              joinedDate: DateTime.now(),
+                              availableDaysPerWeek: availableDays,
+                              workoutSessionsPerDay: sessionsPerDay,
+                              fitnessGoal: goal,
+                            );
+
+                            await Provider.of<ClientProvider>(
+                              context,
+                              listen: false,
+                            ).addClient(client);
+
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          },
+                    child: isSavingClient
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Save Client Profile',
+                            style: TextStyle(color: Colors.white),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -256,18 +349,18 @@ class _DashboardScreenState extends State<DashboardScreen>
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                onPressed: () {
-                  if (groupNameCtrl.text.isEmpty) return;
+                onPressed: () async {
+                  if (groupNameCtrl.text.trim().isEmpty) return;
                   final group = GroupModel(
                     id: 'group_${DateTime.now().millisecondsSinceEpoch}',
                     groupName: groupNameCtrl.text.trim(),
                     createdDate: DateTime.now(),
                   );
-                  Provider.of<ClientProvider>(
+                  await Provider.of<ClientProvider>(
                     context,
                     listen: false,
                   ).addGroup(group);
-                  Navigator.pop(context);
+                  if (context.mounted) Navigator.pop(context);
                 },
                 child: const Text(
                   'Initialize Cluster Group',
@@ -490,8 +583,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
+                    'Goal: ${client.fitnessGoal} • ${client.availableDaysPerWeek} days/wk (${client.workoutSessionsPerDay}x/day)',
+                    style: TextStyle(
+                      color: Colors.blueAccent[100],
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
                     'BMI: ${client.bmi.toStringAsFixed(1)} • ${client.experienceLevel}',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    style: TextStyle(color: Colors.grey[400], fontSize: 11),
                   ),
                 ],
               ),
@@ -536,10 +637,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => MonthCalendarViewScreen(
-                    groupId: group.id,
-                    entityName: group.groupName,
-                  ),
+                  builder: (context) => GroupDetailScreen(group: group),
                 ),
               ),
               child: Column(
@@ -555,7 +653,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Shared Performance Sync Stream',
+                    'Manage Members, Schedule & Attendance',
                     style: TextStyle(
                       color: Colors.indigoAccent[100],
                       fontSize: 12,
@@ -566,14 +664,15 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.indigoAccent),
+            icon: const Icon(
+              Icons.arrow_forward_ios,
+              size: 18,
+              color: Colors.indigoAccent,
+            ),
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => AddScheduleScreen(
-                  groupId: group.id,
-                  entityName: group.groupName,
-                ),
+                builder: (context) => GroupDetailScreen(group: group),
               ),
             ),
           ),
