@@ -31,15 +31,14 @@ class GroupModel {
   }
 }
 
-// 2. Rolling 30-Day Fitness Schedule Track Node
+// 2. Rolling Monthly Fitness Schedule Track Node
 class ScheduleDayModel {
   final String id;
   final String? clientId;
   final String? groupId;
-  final int dayNumber; // Strictly Day 1 to Day 30
+  final int dayNumber; // Day 1 to Day N (28-31)
   final bool isWorkDay; // true = Active Workout, false = Dedicated Rest Day
-  final DateTime
-  absoluteDate; // Calculated rolling calendar milestone matching Day X
+  final DateTime absoluteDate; // Calculated calendar milestone matching Day X
   final String status; // 'Pending', 'Completed', 'Missed'
 
   ScheduleDayModel({
@@ -147,6 +146,55 @@ class GroupAttendanceModel {
       clientId: map['clientId'] as String,
       status: map['status'] as String,
       date: DateTime.parse(map['date'] as String),
+    );
+  }
+}
+
+// 5. Personal Client Progress Track Entry
+class ClientProgressModel {
+  final String id;
+  final String clientId;
+  final double weight; // in kg
+  final double height; // in cm
+  final double bmi;
+  final String? imagePath;
+  final DateTime date;
+  final String? notes;
+
+  ClientProgressModel({
+    required this.id,
+    required this.clientId,
+    required this.weight,
+    required this.height,
+    required this.bmi,
+    this.imagePath,
+    required this.date,
+    this.notes,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'clientId': clientId,
+      'weight': weight,
+      'height': height,
+      'bmi': bmi,
+      'imagePath': imagePath,
+      'date': date.toIso8601String(),
+      'notes': notes,
+    };
+  }
+
+  factory ClientProgressModel.fromMap(Map<String, dynamic> map) {
+    return ClientProgressModel(
+      id: map['id'] as String,
+      clientId: map['clientId'] as String,
+      weight: (map['weight'] as num).toDouble(),
+      height: (map['height'] as num).toDouble(),
+      bmi: (map['bmi'] as num).toDouble(),
+      imagePath: map['imagePath'] as String?,
+      date: DateTime.parse(map['date'] as String),
+      notes: map['notes'] as String?,
     );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../models/fitness_models.dart';
 import '../models/client_model.dart';
 import '../providers/client_provider.dart';
@@ -26,8 +25,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
   // Attendance tab states
   int _selectedDayNumber = 1;
-  final Map<String, String> _attendanceMap =
-      {}; // clientId -> 'Present' or 'Absent'
+  final Map<String, String> _attendanceMap = {};
   bool _isSavingAttendance = false;
 
   @override
@@ -61,8 +59,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     _loadAttendanceForSelectedDay();
   }
 
+  // Automatic attendance loader: defaults to Present for active work days
   Future<void> _loadAttendanceForSelectedDay() async {
     if (_groupSchedule.isEmpty) return;
+
     final dayNode = _groupSchedule.firstWhere(
       (d) => d.dayNumber == _selectedDayNumber,
       orElse: () => _groupSchedule.first,
@@ -85,81 +85,114 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             date: DateTime.now(),
           ),
         );
-        _attendanceMap[member.id] = found.id.isNotEmpty
-            ? found.status
-            : 'Present';
+
+        if (found.id.isNotEmpty) {
+          _attendanceMap[member.id] = found.status;
+        } else {
+          // Auto default to 'Present' if it's a working day
+          _attendanceMap[member.id] = dayNode.isWorkDay ? 'Present' : 'Absent';
+        }
       }
     });
   }
 
-  void _showAddMemberDialog() {
-    final clientProvider = Provider.of<ClientProvider>(context, listen: false);
-    final unassigned = clientProvider.clients
-        .where((c) => c.groupId != widget.group.id)
-        .toList();
+  // Requirement 1: Add new member asking ONLY for Name, Phone Number, and Weight
+  void _showAddNewGroupMemberDialog() {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final weightCtrl = TextEditingController();
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF1E293B),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Add Personal Client to Group',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          top: 20,
+          left: 16,
+          right: 16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Add Member to Group',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            unassigned.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Text(
-                      'No available unassigned clients.',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : Expanded(
-                    child: ListView.builder(
-                      itemCount: unassigned.length,
-                      itemBuilder: (context, idx) {
-                        final c = unassigned[idx];
-                        return ListTile(
-                          title: Text(
-                            c.name,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          subtitle: Text(
-                            'Goal: ${c.fitnessGoal} • ${c.experienceLevel}',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(
-                              Icons.add_circle,
-                              color: Colors.blueAccent,
-                            ),
-                            onPressed: () async {
-                              await clientProvider.assignClientToGroup(
-                                c.id,
-                                widget.group.id,
-                              );
-                              Navigator.pop(context);
-                              _loadData();
-                            },
-                          ),
-                        );
-                      },
-                    ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Member Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: weightCtrl,
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Weight (kg)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
                   ),
-          ],
+                  onPressed: () async {
+                    if (nameCtrl.text.trim().isEmpty) return;
+
+                    await Provider.of<ClientProvider>(
+                      context,
+                      listen: false,
+                    ).addGroupMember(
+                      name: nameCtrl.text.trim(),
+                      phoneNumber: phoneCtrl.text.trim(),
+                      weight: double.tryParse(weightCtrl.text) ?? 70.0,
+                      groupId: widget.group.id,
+                    );
+
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      _loadData();
+                    }
+                  },
+                  child: const Text(
+                    'Save Group Member',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -227,11 +260,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // TAB 1: MEMBERS MANAGEMENT
           _buildMembersTab(),
-          // TAB 2: CALENDAR SCHEDULE
           _buildScheduleTab(),
-          // TAB 3: ATTENDANCE TRACKER
           _buildAttendanceTab(),
         ],
       ),
@@ -259,7 +289,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               ElevatedButton.icon(
                 icon: const Icon(Icons.person_add, size: 16),
                 label: const Text('Add Member'),
-                onPressed: _showAddMemberDialog,
+                onPressed: _showAddNewGroupMemberDialog,
               ),
             ],
           ),
@@ -301,7 +331,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                     ),
                                   ),
                                   Text(
-                                    'Goal: ${member.fitnessGoal} • ${member.availableDaysPerWeek} days/wk (${member.workoutSessionsPerDay}x/day)',
+                                    'Phone: ${member.phoneNumber} • Weight: ${member.startingWeight}kg',
                                     style: TextStyle(
                                       color: Colors.grey[400],
                                       fontSize: 12,
@@ -345,9 +375,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             color: Colors.indigoAccent,
           ),
           const SizedBox(height: 16),
-          Text(
-            '30-Day Training Schedule Grid',
-            style: const TextStyle(
+          const Text(
+            'Group Monthly Schedule Grid',
+            style: TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -413,7 +443,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              'No active 30-day group schedule initialized.',
+              'No active group schedule initialized.',
               style: TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 12),
@@ -434,6 +464,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       );
     }
 
+    int totalDays = _groupSchedule.length;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -452,7 +484,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 value: _selectedDayNumber,
                 dropdownColor: const Color(0xFF1E293B),
                 style: const TextStyle(color: Colors.white),
-                items: List.generate(30, (i) => i + 1).map((dayNum) {
+                items: List.generate(totalDays, (i) => i + 1).map((dayNum) {
                   return DropdownMenuItem(
                     value: dayNum,
                     child: Text('Day $dayNum'),

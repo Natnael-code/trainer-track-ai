@@ -23,9 +23,31 @@ class ClientProvider with ChangeNotifier {
 
   Future<void> addClient(ClientModel newClient) async {
     await DatabaseService.instance.insertClient(newClient);
-    // Prevent duplicate entries by clearing existing matching ID
     _clients.removeWhere((c) => c.id == newClient.id);
     _clients.add(newClient);
+    notifyListeners();
+  }
+
+  // Adds a group-only member directly to a designated group
+  Future<void> addGroupMember({
+    required String name,
+    required String phoneNumber,
+    required double weight,
+    required String groupId,
+  }) async {
+    final client = ClientModel(
+      id: 'member_${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      phoneNumber: phoneNumber,
+      startingWeight: weight,
+      joinedDate: DateTime.now(),
+      groupId: groupId,
+    );
+
+    await DatabaseService.instance.insertClient(client);
+    await DatabaseService.instance.addClientToGroup(client.id, groupId);
+    _clients.removeWhere((c) => c.id == client.id);
+    _clients.add(client);
     notifyListeners();
   }
 
@@ -100,6 +122,12 @@ class ClientProvider with ChangeNotifier {
       _clients[clientIndex] = updated;
       notifyListeners();
     }
+  }
+
+  // Adds a progress entry for a personal client
+  Future<void> addClientProgress(ClientProgressModel progress) async {
+    await DatabaseService.instance.insertClientProgress(progress);
+    notifyListeners();
   }
 
   Future<void> backupData() async {

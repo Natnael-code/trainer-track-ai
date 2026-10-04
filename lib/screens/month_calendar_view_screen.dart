@@ -68,7 +68,6 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
     });
   }
 
-  // READ-ONLY DISPLAY DIALOG WITH "MARK DONE" ACTION
   void _showReadOnlyDayDialog(ScheduleDayModel day) async {
     final workoutPlan = await DatabaseService.instance.fetchWorkoutPlanForDay(
       day.id,
@@ -282,7 +281,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'No schedule configured yet.',
+                    'No active plan deployed yet.',
                     style: TextStyle(color: Colors.white70),
                   ),
                   const SizedBox(height: 12),
@@ -297,7 +296,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                         ),
                       ),
                     ).then((_) => _loadCalendarStream()),
-                    child: const Text('Initialize 30-Day Calendar Grid'),
+                    child: const Text('Initialize Monthly Calendar Grid'),
                   ),
                 ],
               ),
@@ -306,6 +305,56 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+                  // Active Plan Notification Banner
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.greenAccent,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Active Plan Deployed (${_days.length} Days)',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AddScheduleScreen(
+                                clientId: widget.clientId,
+                                groupId: widget.groupId,
+                                entityName: widget.entityName,
+                              ),
+                            ),
+                          ).then((_) => _loadCalendarStream()),
+                          child: const Text(
+                            'Edit Plan',
+                            style: TextStyle(color: Colors.blueAccent),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(

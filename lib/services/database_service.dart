@@ -17,6 +17,7 @@ class DatabaseService {
   static final List<WorkoutPlanModel> _webWorkoutPlansCache = [];
   static final List<Map<String, String>> _webGroupMembersCache = [];
   static final List<GroupAttendanceModel> _webAttendanceCache = [];
+  static final List<ClientProgressModel> _webProgressCache = [];
 
   DatabaseService._init();
 
@@ -36,7 +37,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _onUpgradeDB,
     );
@@ -115,6 +116,19 @@ class DatabaseService {
         exercisesJson TEXT NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE client_progress (
+        id TEXT PRIMARY KEY,
+        clientId TEXT NOT NULL,
+        weight REAL NOT NULL,
+        height REAL NOT NULL,
+        bmi REAL NOT NULL,
+        imagePath TEXT,
+        date TEXT NOT NULL,
+        notes TEXT
+      )
+    ''');
   }
 
   Future _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -157,6 +171,22 @@ class DatabaseService {
         ''');
       } catch (_) {}
     }
+    if (oldVersion < 6) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS client_progress (
+            id TEXT PRIMARY KEY,
+            clientId TEXT NOT NULL,
+            weight REAL NOT NULL,
+            height REAL NOT NULL,
+            bmi REAL NOT NULL,
+            imagePath TEXT,
+            date TEXT NOT NULL,
+            notes TEXT
+          )
+        ''');
+      } catch (_) {}
+    }
   }
 
   // --- CLIENT OPERATIONS ---
@@ -179,6 +209,38 @@ class DatabaseService {
     final db = await instance.database;
     final result = await db.query('clients', orderBy: 'name ASC');
     return result.map((json) => ClientModel.fromMap(json)).toList();
+  }
+
+  // --- CLIENT PROGRESS OPERATIONS ---
+  Future<void> insertClientProgress(ClientProgressModel progress) async {
+    if (kIsWeb) {
+      _webProgressCache.removeWhere((p) => p.id == progress.id);
+      _webProgressCache.add(progress);
+      return;
+    }
+    final db = await instance.database;
+    await db.insert(
+      'client_progress',
+      progress.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<ClientProgressModel>> fetchProgressForClient(
+    String clientId,
+  ) async {
+    if (kIsWeb) {
+      return _webProgressCache.where((p) => p.clientId == clientId).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+    }
+    final db = await instance.database;
+    final result = await db.query(
+      'client_progress',
+      where: 'clientId = ?',
+      whereArgs: [clientId],
+      orderBy: 'date DESC',
+    );
+    return result.map((json) => ClientProgressModel.fromMap(json)).toList();
   }
 
   // --- GROUP OPERATIONS & MEMBERSHIP ---
