@@ -211,6 +211,29 @@ class DatabaseService {
     return result.map((json) => ClientModel.fromMap(json)).toList();
   }
 
+  Future<void> deleteClient(String clientId) async {
+    if (kIsWeb) {
+      _webClientsCache.removeWhere((c) => c.id == clientId);
+      _webGroupMembersCache.removeWhere((m) => m['clientId'] == clientId);
+      _webSchedulesCache.removeWhere((s) => s.clientId == clientId);
+      _webProgressCache.removeWhere((p) => p.clientId == clientId);
+      return;
+    }
+    final db = await instance.database;
+    await db.delete('clients', where: 'id = ?', whereArgs: [clientId]);
+    await db.delete(
+      'group_members',
+      where: 'clientId = ?',
+      whereArgs: [clientId],
+    );
+    await db.delete('schedules', where: 'clientId = ?', whereArgs: [clientId]);
+    await db.delete(
+      'client_progress',
+      where: 'clientId = ?',
+      whereArgs: [clientId],
+    );
+  }
+
   // --- CLIENT PROGRESS OPERATIONS ---
   Future<void> insertClientProgress(ClientProgressModel progress) async {
     if (kIsWeb) {
@@ -271,6 +294,31 @@ class DatabaseService {
         (m) => m['clientId'] == clientId && m['groupId'] == groupId,
       );
       _webGroupMembersCache.add({'groupId': groupId, 'clientId': clientId});
+      final index = _webClientsCache.indexWhere((c) => c.id == clientId);
+      if (index != -1) {
+        final c = _webClientsCache[index];
+        _webClientsCache[index] = ClientModel(
+          id: c.id,
+          name: c.name,
+          phoneNumber: c.phoneNumber,
+          age: c.age,
+          gender: c.gender,
+          startingWeight: c.startingWeight,
+          height: c.height,
+          startingBodyFat: c.startingBodyFat,
+          localProfileImagePath: c.localProfileImagePath,
+          injuries: c.injuries,
+          medicalConditions: c.medicalConditions,
+          experienceLevel: c.experienceLevel,
+          lifestyleType: c.lifestyleType,
+          joinedDate: c.joinedDate,
+          status: c.status,
+          groupId: groupId,
+          availableDaysPerWeek: c.availableDaysPerWeek,
+          workoutSessionsPerDay: c.workoutSessionsPerDay,
+          fitnessGoal: c.fitnessGoal,
+        );
+      }
       return;
     }
     final db = await instance.database;

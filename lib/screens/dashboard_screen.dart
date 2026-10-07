@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/client_provider.dart';
 import '../models/client_model.dart';
 import '../models/fitness_models.dart';
@@ -33,6 +34,65 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
+  Future<void> _pickImage(
+    ImageSource source,
+    TextEditingController photoPathCtrl,
+    StateSetter setModalState,
+  ) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+    if (pickedFile != null) {
+      setModalState(() {
+        photoPathCtrl.text = pickedFile.path;
+      });
+    }
+  }
+
+  void _showImagePickerOptions(
+    BuildContext context,
+    TextEditingController photoPathCtrl,
+    StateSetter setModalState,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library,
+                color: Colors.blueAccent,
+              ),
+              title: const Text(
+                'Choose from Gallery',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery, photoPathCtrl, setModalState);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.blueAccent),
+              title: const Text(
+                'Take Photo using Camera',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera, photoPathCtrl, setModalState);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddClientDialog() {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -42,7 +102,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     final photoPathCtrl = TextEditingController();
 
     String expLevel = 'Beginner';
-    String lifestyle = 'Sedentary';
     int availableDays = 5;
     int sessionsPerDay = 1;
     String goal = 'Lose Weight';
@@ -68,7 +127,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(context).viewInsets.bottom,
-              top: 20,
+              top: 16,
               left: 16,
               right: 16,
             ),
@@ -77,13 +136,24 @@ class _DashboardScreenState extends State<DashboardScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Register New Personal Client',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Register New Personal Client',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -157,17 +227,71 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const SizedBox(height: 12),
                   TextField(
                     controller: photoPathCtrl,
+                    readOnly: true,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Local Image File Path (Optional)',
-                      hintText: '/storage/emulated/0/...',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(
-                        Icons.camera_alt,
-                        color: Colors.blueAccent,
+                    onTap: () => _showImagePickerOptions(
+                      context,
+                      photoPathCtrl,
+                      setModalState,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Profile Photo',
+                      hintText: photoPathCtrl.text.isEmpty
+                          ? 'Tap camera icon to add photo'
+                          : photoPathCtrl.text,
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.blueAccent,
+                        ),
+                        onPressed: () => _showImagePickerOptions(
+                          context,
+                          photoPathCtrl,
+                          setModalState,
+                        ),
                       ),
                     ),
                   ),
+                  if (photoPathCtrl.text.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: File(photoPathCtrl.text).existsSync()
+                              ? Image.file(
+                                  File(photoPathCtrl.text),
+                                  width: 45,
+                                  height: 45,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  width: 45,
+                                  height: 45,
+                                  color: Colors.grey[800],
+                                  child: const Icon(
+                                    Icons.image,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            photoPathCtrl.text,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: goal,
@@ -262,27 +386,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                         .toList(),
                     onChanged: (v) => setModalState(() => expLevel = v!),
                   ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: lifestyle,
-                    dropdownColor: const Color(0xFF1E293B),
-                    decoration: const InputDecoration(
-                      labelText: 'Lifestyle Type',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: ['Sedentary', 'Active']
-                        .map(
-                          (l) => DropdownMenuItem(
-                            value: l,
-                            child: Text(
-                              l,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setModalState(() => lifestyle = v!),
-                  ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
@@ -312,7 +415,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                 injuries: 'None',
                                 medicalConditions: 'None',
                                 experienceLevel: expLevel,
-                                lifestyleType: lifestyle,
+                                lifestyleType: 'Active',
                                 joinedDate: DateTime.now(),
                                 availableDaysPerWeek: availableDays,
                                 workoutSessionsPerDay: sessionsPerDay,
@@ -346,7 +449,46 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // Requirement 1: Progress Window showing Initial Registration photo + changes & Click for Full Details
+  void _confirmDeleteClient(BuildContext context, ClientModel client) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text(
+          'Delete Client',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete ${client.name}? This action cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              await DatabaseService.instance.deleteClient(client.id);
+              if (context.mounted) {
+                await Provider.of<ClientProvider>(
+                  context,
+                  listen: false,
+                ).loadClientsFromDatabase();
+                Navigator.pop(context);
+              }
+            },
+            child: const Text(
+              'Delete Permanently',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showClientProgressDialog(ClientModel client) {
     showModalBottomSheet(
       context: context,
@@ -361,7 +503,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           builder: (context, snapshot) {
             List<ClientProgressModel> progressList = [...(snapshot.data ?? [])];
 
-            // Prepend synthesized registration baseline if not present in DB list
             bool hasInit = progressList.any((p) => p.id.contains('init'));
             if (!hasInit) {
               final initialStep = ClientProgressModel(
@@ -377,7 +518,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               progressList.insert(0, initialStep);
             }
 
-            // Ensure chronological order so Step 1 is the first saved registration
             progressList.sort((a, b) => a.date.compareTo(b.date));
 
             return Padding(
@@ -549,7 +689,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // Detailed view dialog showing photo and all details for any saved progress step
   void _showProgressDetailDialog(
     BuildContext context,
     ClientProgressModel progress,
@@ -897,6 +1036,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     final String formattedDate = DateFormat('EEEE, MMMM d').format(now);
     final clientProvider = Provider.of<ClientProvider>(context);
 
+    final personalClients = clientProvider.clients
+        .where((c) => c.groupId == null || c.groupId!.isEmpty)
+        .toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       body: SafeArea(
@@ -940,8 +1083,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                 children: [
                   Expanded(
                     child: _buildMetricCard(
-                      title: 'Active Clients',
-                      value: '${clientProvider.totalActiveClients}',
+                      title: 'Active Personal Clients',
+                      value: '${personalClients.length}',
                       icon: Icons.person,
                       color: const Color(0xFF3B82F6),
                     ),
@@ -984,13 +1127,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    clientProvider.clients.isEmpty
+                    personalClients.isEmpty
                         ? _buildEmptyState('No personal clients assigned.')
                         : ListView.builder(
-                            itemCount: clientProvider.clients.length,
+                            itemCount: personalClients.length,
                             itemBuilder: (context, idx) => _buildWideItemCard(
                               context,
-                              clientProvider.clients[idx],
+                              personalClients[idx],
                             ),
                           ),
                     clientProvider.groups.isEmpty
@@ -1069,20 +1212,27 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       child: Row(
         children: [
-          client.localProfileImagePath != null &&
-                  client.localProfileImagePath!.isNotEmpty &&
-                  File(client.localProfileImagePath!).existsSync()
-              ? CircleAvatar(
-                  radius: 26,
-                  backgroundImage: FileImage(
-                    File(client.localProfileImagePath!),
-                  ),
-                )
-              : CircleAvatar(
-                  radius: 26,
-                  backgroundColor: Colors.grey[800],
-                  child: const Icon(Icons.person, color: Colors.white70),
-                ),
+          GestureDetector(
+            onTap: () => _confirmDeleteClient(context, client),
+            child: Tooltip(
+              message: 'Tap to delete client',
+              child:
+                  client.localProfileImagePath != null &&
+                      client.localProfileImagePath!.isNotEmpty &&
+                      File(client.localProfileImagePath!).existsSync()
+                  ? CircleAvatar(
+                      radius: 26,
+                      backgroundImage: FileImage(
+                        File(client.localProfileImagePath!),
+                      ),
+                    )
+                  : CircleAvatar(
+                      radius: 26,
+                      backgroundColor: Colors.grey[800],
+                      child: const Icon(Icons.person, color: Colors.white70),
+                    ),
+            ),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: GestureDetector(
