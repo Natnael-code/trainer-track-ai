@@ -6,9 +6,16 @@ import '../services/database_service.dart';
 class ClientProvider with ChangeNotifier {
   List<ClientModel> _clients = [];
   List<GroupModel> _groups = [];
+  bool _isDarkMode = true;
 
   List<ClientModel> get clients => [..._clients];
   List<GroupModel> get groups => [..._groups];
+  bool get isDarkMode => _isDarkMode;
+
+  void toggleTheme() {
+    _isDarkMode = !_isDarkMode;
+    notifyListeners();
+  }
 
   int get totalActiveClients =>
       _clients.where((c) => c.status == 'active').length;
