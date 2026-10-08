@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'providers/client_provider.dart';
 import 'screens/dashboard_screen.dart';
@@ -6,8 +7,10 @@ import 'screens/dashboard_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Load environment variables from .env asset
+  await dotenv.load(fileName: ".env");
+
   final clientProvider = ClientProvider();
-  // Safe initial database background payload loading before bootstrapping application paint layout cycles
   await clientProvider.loadClientsFromDatabase();
 
   runApp(

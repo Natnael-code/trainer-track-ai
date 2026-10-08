@@ -10,6 +10,7 @@ import '../services/database_service.dart';
 import 'add_schedule_screen.dart';
 import 'month_calendar_view_screen.dart';
 import 'group_detail_screen.dart';
+import 'ai_advisor_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -275,7 +276,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     ClientModel client,
     bool isDark,
   ) {
-    // STEP 1: First prompt action ("Delete")
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -303,12 +303,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () {
-              Navigator.pop(context); // Close Step 1 dialog
-              _confirmDeleteClientStepTwo(
-                context,
-                client,
-                isDark,
-              ); // Open Step 2
+              Navigator.pop(context);
+              _confirmDeleteClientStepTwo(context, client, isDark);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
@@ -317,7 +313,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // STEP 2: Second verification asking "Are you sure this will permanently delete the client?"
   void _confirmDeleteClientStepTwo(
     BuildContext context,
     ClientModel client,
@@ -1290,7 +1285,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _showAddGroupDialog(bool isDark) {
     final groupNameCtrl = TextEditingController();
     final bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final textColor = isDark ? const Color(0xFF0F172A) : Colors.white;
 
     showModalBottomSheet(
       context: context,
@@ -1382,7 +1377,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              // Top Bar with Greeting + Top-Right Settings/Info Icon
+              // Top Bar with Greeting + AI Advisor + Settings/Info Icon
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1403,22 +1398,41 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ],
                   ),
-                  // Icon beside "Good Morning Coach" -> Opens Theme / Email / Backup Info
-                  GestureDetector(
-                    onTap: () => _showSettingsAndBackupBottomSheet(
-                      context,
-                      clientProvider,
-                      isDark,
-                    ),
-                    child: CircleAvatar(
-                      backgroundColor: isDark
-                          ? const Color(0xFF1E293B)
-                          : const Color(0xFFE2E8F0),
-                      child: Icon(
-                        isDark ? Icons.dark_mode : Icons.light_mode,
-                        color: isDark ? Colors.amber : Colors.orangeAccent,
+                  Row(
+                    children: [
+                      // Launch AI Advisor Screen
+                      IconButton(
+                        icon: const Icon(
+                          Icons.auto_awesome,
+                          color: Colors.blueAccent,
+                          size: 26,
+                        ),
+                        tooltip: 'TrainerTrack AI Advisor',
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AiAdvisorScreen(),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _showSettingsAndBackupBottomSheet(
+                          context,
+                          clientProvider,
+                          isDark,
+                        ),
+                        child: CircleAvatar(
+                          backgroundColor: isDark
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFE2E8F0),
+                          child: Icon(
+                            isDark ? Icons.dark_mode : Icons.light_mode,
+                            color: isDark ? Colors.amber : Colors.orangeAccent,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1595,7 +1609,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       child: Row(
         children: [
-          // Tapping avatar initiates the two-step client deletion flow
           GestureDetector(
             onTap: () => _startDeleteClientFlow(context, client, isDark),
             child: Tooltip(
@@ -1663,6 +1676,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+          // Direct Action: Open AI Advisor for this specific Client
+          IconButton(
+            icon: const Icon(Icons.auto_awesome, color: Colors.blueAccent),
+            tooltip: 'Ask AI Advisor for ${client.name}',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    AiAdvisorScreen(initialClientId: client.id),
               ),
             ),
           ),

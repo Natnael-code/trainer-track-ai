@@ -18,6 +18,7 @@ class DatabaseService {
   static final List<Map<String, String>> _webGroupMembersCache = [];
   static final List<GroupAttendanceModel> _webAttendanceCache = [];
   static final List<ClientProgressModel> _webProgressCache = [];
+  static final List<AiChatMessageModel> _webAiChatCache = [];
 
   DatabaseService._init();
 
@@ -37,7 +38,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _onUpgradeDB,
     );
@@ -129,6 +130,16 @@ class DatabaseService {
         notes TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE ai_chat_messages (
+        id TEXT PRIMARY KEY,
+        clientId TEXT NOT NULL,
+        sender TEXT NOT NULL,
+        text TEXT NOT NULL,
+        timestamp TEXT NOT NULL
+      )
+    ''');
   }
 
   Future _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -187,6 +198,19 @@ class DatabaseService {
         ''');
       } catch (_) {}
     }
+    if (oldVersion < 7) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS ai_chat_messages (
+            id TEXT PRIMARY KEY,
+            clientId TEXT NOT NULL,
+            sender TEXT NOT NULL,
+            text TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+          )
+        ''');
+      } catch (_) {}
+    }
   }
 
   // --- CLIENT OPERATIONS ---
@@ -217,6 +241,7 @@ class DatabaseService {
       _webGroupMembersCache.removeWhere((m) => m['clientId'] == clientId);
       _webSchedulesCache.removeWhere((s) => s.clientId == clientId);
       _webProgressCache.removeWhere((p) => p.clientId == clientId);
+      _webAiChatCache.removeWhere((m) => m.clientId == clientId);
       return;
     }
     final db = await instance.database;
@@ -229,6 +254,11 @@ class DatabaseService {
     await db.delete('schedules', where: 'clientId = ?', whereArgs: [clientId]);
     await db.delete(
       'client_progress',
+      where: 'clientId = ?',
+      whereArgs: [clientId],
+    );
+    await db.delete(
+      'ai_chat_messages',
       where: 'clientId = ?',
       whereArgs: [clientId],
     );
@@ -264,6 +294,51 @@ class DatabaseService {
       orderBy: 'date DESC',
     );
     return result.map((json) => ClientProgressModel.fromMap(json)).toList();
+  }
+
+  // --- AI CHAT MEMORY OPERATIONS ---
+  Future<void> insertAiChatMessage(AiChatMessageModel message) async {
+    if (kIsWeb) {
+      _webAiChatCache.removeWhere((m) => m.id == message.id);
+      _webAiChatCache.add(message);
+      return;
+    }
+    final db = await instance.database;
+    await db.insert(
+      'ai_chat_messages',
+      message.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<AiChatMessageModel>> fetchAiChatMessagesForClient(
+    String clientId,
+  ) async {
+    if (kIsWeb) {
+      return _webAiChatCache.where((m) => m.clientId == clientId).toList()
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    }
+    final db = await instance.database;
+    final result = await db.query(
+      'ai_chat_messages',
+      where: 'clientId = ?',
+      whereArgs: [clientId],
+      orderBy: 'timestamp ASC',
+    );
+    return result.map((json) => AiChatMessageModel.fromMap(json)).toList();
+  }
+
+  Future<void> clearAiChatHistoryForClient(String clientId) async {
+    if (kIsWeb) {
+      _webAiChatCache.removeWhere((m) => m.clientId == clientId);
+      return;
+    }
+    final db = await instance.database;
+    await db.delete(
+      'ai_chat_messages',
+      where: 'clientId = ?',
+      whereArgs: [clientId],
+    );
   }
 
   // --- GROUP OPERATIONS & MEMBERSHIP ---

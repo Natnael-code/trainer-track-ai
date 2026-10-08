@@ -198,3 +198,40 @@ class ClientProgressModel {
     );
   }
 }
+
+// 6. AI Advisor Persistent Chat Message Node
+class AiChatMessageModel {
+  final String id;
+  final String clientId;
+  final String sender; // 'user' or 'ai'
+  final String text;
+  final DateTime timestamp;
+
+  AiChatMessageModel({
+    required this.id,
+    required this.clientId,
+    required this.sender,
+    required this.text,
+    required this.timestamp,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'clientId': clientId,
+      'sender': sender,
+      'text': text,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
+
+  factory AiChatMessageModel.fromMap(Map<String, dynamic> map) {
+    return AiChatMessageModel(
+      id: map['id'] as String,
+      clientId: map['clientId'] as String,
+      sender: map['sender'] as String,
+      text: map['text'] as String,
+      timestamp: DateTime.parse(map['timestamp'] as String),
+    );
+  }
+}
