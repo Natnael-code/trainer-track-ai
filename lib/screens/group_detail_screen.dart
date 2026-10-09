@@ -24,7 +24,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   List<ScheduleDayModel> _groupSchedule = [];
   bool _isLoadingMembers = true;
 
-  // Attendance tab states
   int _selectedDayNumber = 1;
   final Map<String, String> _attendanceMap = {};
   bool _isSavingAttendance = false;
@@ -58,7 +57,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     int defaultDayNum = 1;
     final DateTime now = DateTime.now();
 
-    // Automatically match today's date with current schedule day if found
     for (var day in schedule) {
       if (_isSameDay(day.absoluteDate, now)) {
         defaultDayNum = day.dayNumber;
@@ -66,17 +64,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       }
     }
 
-    setState(() {
-      _groupMembers = members;
-      _groupSchedule = schedule;
-      _selectedDayNumber = defaultDayNum;
-      _isLoadingMembers = false;
-    });
-
-    _loadAttendanceForSelectedDay();
+    if (mounted) {
+      setState(() {
+        _groupMembers = members;
+        _groupSchedule = schedule;
+        _selectedDayNumber = defaultDayNum;
+        _isLoadingMembers = false;
+      });
+      _loadAttendanceForSelectedDay();
+    }
   }
 
-  // Loads attendance for the selected day from the database
   Future<void> _loadAttendanceForSelectedDay() async {
     if (_groupSchedule.isEmpty) return;
 
@@ -88,40 +86,46 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     final existingAttendance = await DatabaseService.instance
         .fetchAttendanceForDay(widget.group.id, dayNode.id);
 
-    setState(() {
-      _attendanceMap.clear();
-      for (var member in _groupMembers) {
-        final found = existingAttendance.firstWhere(
-          (a) => a.clientId == member.id,
-          orElse: () => GroupAttendanceModel(
-            id: '',
-            groupId: widget.group.id,
-            dayScheduleId: dayNode.id,
-            clientId: member.id,
-            status: 'Present',
-            date: DateTime.now(),
-          ),
-        );
+    if (mounted) {
+      setState(() {
+        _attendanceMap.clear();
+        for (var member in _groupMembers) {
+          final found = existingAttendance.firstWhere(
+            (a) => a.clientId == member.id,
+            orElse: () => GroupAttendanceModel(
+              id: '',
+              groupId: widget.group.id,
+              dayScheduleId: dayNode.id,
+              clientId: member.id,
+              status: 'Present',
+              date: DateTime.now(),
+            ),
+          );
 
-        if (found.id.isNotEmpty) {
-          _attendanceMap[member.id] = found.status;
-        } else {
-          // Default to 'Present' for active work days
-          _attendanceMap[member.id] = dayNode.isWorkDay ? 'Present' : 'Absent';
+          if (found.id.isNotEmpty) {
+            _attendanceMap[member.id] = found.status;
+          } else {
+            _attendanceMap[member.id] = dayNode.isWorkDay
+                ? 'Present'
+                : 'Absent';
+          }
         }
-      }
-    });
+      });
+    }
   }
 
-  void _showAddNewGroupMemberDialog() {
+  void _showAddNewGroupMemberDialog(bool isDark) {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final weightCtrl = TextEditingController();
 
+    final bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: bgColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -137,18 +141,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Add Member to Group',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: nameCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: textColor),
                 decoration: const InputDecoration(
                   labelText: 'Member Name',
                   border: OutlineInputBorder(),
@@ -157,7 +161,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               const SizedBox(height: 12),
               TextField(
                 controller: phoneCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: textColor),
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   labelText: 'Phone Number',
@@ -167,7 +171,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               const SizedBox(height: 12),
               TextField(
                 controller: weightCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: textColor),
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Weight (kg)',
@@ -180,7 +184,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: const Color(0xFF2563EB),
                   ),
                   onPressed: () async {
                     if (nameCtrl.text.trim().isEmpty) return;
@@ -202,7 +206,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   },
                   child: const Text(
                     'Save Group Member',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -244,7 +251,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Attendance records saved successfully!'),
-          backgroundColor: Colors.green,
+          backgroundColor: Color(0xFF10B981),
         ),
       );
     }
@@ -252,19 +259,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final clientProvider = Provider.of<ClientProvider>(context);
+    final isDark = clientProvider.isDarkMode;
+
+    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
           widget.group.groupName,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: bgColor,
+        iconTheme: IconThemeData(color: textColor),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.indigoAccent,
-          labelColor: Colors.white,
+          indicatorColor: const Color(0xFF3B82F6),
+          labelColor: const Color(0xFF3B82F6),
           unselectedLabelColor: Colors.grey,
           tabs: const [
             Tab(icon: Icon(Icons.group), text: 'Members'),
@@ -276,16 +289,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildMembersTab(),
-          _buildScheduleTab(),
-          _buildAttendanceTab(),
+          _buildMembersTab(isDark),
+          _buildScheduleTab(isDark),
+          _buildAttendanceTab(isDark),
         ],
       ),
     );
   }
 
-  Widget _buildMembersTab() {
+  Widget _buildMembersTab(bool isDark) {
     final clientProvider = Provider.of<ClientProvider>(context);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -296,16 +311,26 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             children: [
               Text(
                 'Group Members (${_groupMembers.length})',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textColor,
                 ),
               ),
               ElevatedButton.icon(
-                icon: const Icon(Icons.person_add, size: 16),
-                label: const Text('Add Member'),
-                onPressed: _showAddNewGroupMemberDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                ),
+                icon: const Icon(
+                  Icons.person_add,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Add Member',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onPressed: () => _showAddNewGroupMemberDialog(isDark),
               ),
             ],
           ),
@@ -328,8 +353,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
+                          color: cardBg,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white10
+                                : const Color(0xFFE2E8F0),
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -341,15 +371,17 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                                 children: [
                                   Text(
                                     member.name,
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: textColor,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
                                     'Phone: ${member.phoneNumber} • Weight: ${member.startingWeight}kg',
                                     style: TextStyle(
-                                      color: Colors.grey[400],
+                                      color: isDark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
                                       fontSize: 12,
                                     ),
                                   ),
@@ -380,21 +412,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  Widget _buildScheduleTab() {
+  Widget _buildScheduleTab(bool isDark) {
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.calendar_month,
-            size: 64,
-            color: Colors.indigoAccent,
-          ),
+          const Icon(Icons.calendar_month, size: 64, color: Color(0xFF3B82F6)),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Group Monthly Schedule Grid',
             style: TextStyle(
-              color: Colors.white,
+              color: textColor,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -423,9 +453,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               ),
               const SizedBox(width: 12),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
-                icon: const Icon(Icons.edit),
-                label: const Text('Build Schedule'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                ),
+                icon: const Icon(Icons.edit, color: Colors.white),
+                label: const Text(
+                  'Build Schedule',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -443,7 +478,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
   }
 
-  Widget _buildAttendanceTab() {
+  Widget _buildAttendanceTab(bool isDark) {
     if (_groupMembers.isEmpty) {
       return const Center(
         child: Text(
@@ -487,6 +522,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     );
     final bool isSelectedToday = _isSameDay(selectedDayNode.absoluteDate, now);
 
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     int presentCount = _attendanceMap.values
         .where((v) => v == 'Present')
         .length;
@@ -498,26 +536,29 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
+              color: cardBg,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Select Day:',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: textColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
                 ),
                 DropdownButton<int>(
                   value: _selectedDayNumber,
-                  dropdownColor: const Color(0xFF1E293B),
-                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: cardBg,
+                  style: TextStyle(color: textColor),
                   items: _groupSchedule.map((dayNode) {
                     final bool isToday = _isSameDay(dayNode.absoluteDate, now);
                     final String label =
@@ -527,7 +568,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                       child: Text(
                         label,
                         style: TextStyle(
-                          color: isToday ? Colors.greenAccent : Colors.white,
+                          color: isToday ? const Color(0xFF10B981) : textColor,
                           fontWeight: isToday
                               ? FontWeight.bold
                               : FontWeight.normal,
@@ -547,23 +588,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           ),
           const SizedBox(height: 12),
 
-          // Header Banner indicating active session vs saved record review
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: isSelectedToday
-                  ? Colors.blueAccent.withOpacity(0.15)
-                  : Colors.amber.withOpacity(0.15),
+                  ? const Color(0xFF3B82F6).withAlpha(35)
+                  : Colors.amber.withAlpha(35),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isSelectedToday ? Colors.blueAccent : Colors.amber,
+                color: isSelectedToday ? const Color(0xFF3B82F6) : Colors.amber,
               ),
             ),
             child: Row(
               children: [
                 Icon(
                   isSelectedToday ? Icons.today : Icons.history,
-                  color: isSelectedToday ? Colors.blueAccent : Colors.amber,
+                  color: isSelectedToday
+                      ? const Color(0xFF3B82F6)
+                      : Colors.amber,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -576,7 +618,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                             : 'Saved Attendance Record View',
                         style: TextStyle(
                           color: isSelectedToday
-                              ? Colors.blueAccent
+                              ? const Color(0xFF3B82F6)
                               : Colors.amber,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
@@ -586,8 +628,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         DateFormat(
                           'EEEE, MMMM d, yyyy',
                         ).format(selectedDayNode.absoluteDate),
-                        style: const TextStyle(
-                          color: Colors.white70,
+                        style: TextStyle(
+                          color: textColor.withAlpha(200),
                           fontSize: 11,
                         ),
                       ),
@@ -596,8 +638,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 ),
                 Text(
                   'P: $presentCount | A: $absentCount',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
@@ -621,8 +663,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -632,8 +677,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                         children: [
                           Text(
                             member.name,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: textColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -679,7 +724,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: isSelectedToday
-                    ? Colors.blueAccent
+                    ? const Color(0xFF2563EB)
                     : Colors.indigoAccent,
               ),
               onPressed: _isSavingAttendance ? null : _saveAttendance,

@@ -4,8 +4,8 @@ class ClientModel {
   final String phoneNumber;
   final int age;
   final String gender;
-  final double startingWeight; // in kg
-  final double height; // in cm
+  final double startingWeight;
+  final double height;
   final String? startingBodyFat;
   final String? localProfileImagePath;
   final String injuries;
@@ -13,13 +13,12 @@ class ClientModel {
   final String experienceLevel;
   final String lifestyleType;
   final DateTime joinedDate;
-  final String status; // 'active' or 'inactive'
+  final String status;
   final String? groupId;
 
-  // Registration Fields
-  final int availableDaysPerWeek; // 1 to 7
-  final int workoutSessionsPerDay; // 1 or 2
-  final String fitnessGoal; // 'Lose Weight', 'Gain Weight', 'Maintain Weight'
+  final int availableDaysPerWeek;
+  final int workoutSessionsPerDay;
+  final String fitnessGoal;
 
   ClientModel({
     required this.id,
@@ -43,7 +42,6 @@ class ClientModel {
     this.fitnessGoal = 'Lose Weight',
   });
 
-  // Accurate BMI Calculation Getter: Weight(kg) / (Height(m)^2)
   double get bmi {
     if (height <= 0) return 0.0;
     double heightInMeters = height / 100.0;

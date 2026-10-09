@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/fitness_models.dart';
+import '../providers/client_provider.dart';
 import '../services/database_service.dart';
 
 class AddScheduleScreen extends StatefulWidget {
@@ -22,7 +24,6 @@ class AddScheduleScreen extends StatefulWidget {
 class _AddScheduleScreenState extends State<AddScheduleScreen> {
   DateTime _startDate = DateTime.now();
 
-  // Configuration maps
   final Map<int, bool> _dayWorkStatusMap = {};
   final Map<int, String> _dayRoutineNameMap = {};
   final Map<int, String> _dayExercisesMap = {};
@@ -31,7 +32,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
   bool _isLoadingSaved = true;
   bool _hasExistingPlan = false;
 
-  // Calculates exact total days for the selected calendar month (28, 29, 30, or 31)
   int get _daysInSelectedMonth =>
       DateTime(_startDate.year, _startDate.month + 1, 0).day;
 
@@ -68,7 +68,6 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
         }
       }
     } else {
-      // Baseline initialization if no schedule exists
       int totalDays = _daysInSelectedMonth;
       for (int i = 1; i <= totalDays; i++) {
         _dayWorkStatusMap[i] = true;
@@ -83,7 +82,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     }
   }
 
-  void _configureSpecificDayDialog(int dayNum) {
+  void _configureSpecificDayDialog(int dayNum, bool isDark) {
     final routineCtrl = TextEditingController(
       text: _dayRoutineNameMap[dayNum] ?? 'General Split',
     );
@@ -92,32 +91,48 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
     );
     bool isWork = _dayWorkStatusMap[dayNum] ?? true;
 
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: dialogBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text(
             'Configure Plan: Day $dayNum',
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+            style: TextStyle(
+              color: textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SwitchListTile(
-                  title: const Text(
-                    'Is Active Workout Day',
-                    style: TextStyle(fontSize: 14, color: Colors.white),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Active Workout Day',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   value: isWork,
+                  activeColor: const Color(0xFF3B82F6),
                   onChanged: (val) => setModalState(() => isWork = val),
                 ),
                 if (isWork) ...[
                   const SizedBox(height: 12),
                   TextField(
                     controller: routineCtrl,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textColor),
                     decoration: const InputDecoration(
                       labelText: 'Routine Name',
                       border: OutlineInputBorder(),
@@ -126,7 +141,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: exercisesCtrl,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textColor),
                     maxLines: 4,
                     decoration: const InputDecoration(
                       labelText: 'Target Exercises List',
@@ -143,6 +158,9 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+              ),
               onPressed: () {
                 setState(() {
                   _dayWorkStatusMap[dayNum] = isWork;
@@ -151,7 +169,10 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                 });
                 Navigator.pop(context);
               },
-              child: const Text('Apply Changes'),
+              child: const Text(
+                'Apply Changes',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -208,7 +229,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
           content: Text(
             'Saved $totalDaysInMonth-Day Routine starting ${DateFormat('MMM d').format(_startDate)}!',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xFF10B981),
         ),
       );
       Navigator.pop(context);
@@ -217,17 +238,29 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clientProvider = Provider.of<ClientProvider>(context);
+    final isDark = clientProvider.isDarkMode;
+
+    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     int totalDaysInMonth = _daysInSelectedMonth;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
           '${_hasExistingPlan ? "Edit" : "Build"} Plan for ${widget.entityName}',
-          style: const TextStyle(fontSize: 16, color: Colors.white),
+          style: TextStyle(
+            fontSize: 16,
+            color: textColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: bgColor,
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: _isLoadingSaved
           ? const Center(child: CircularProgressIndicator())
@@ -242,20 +275,20 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blueAccent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blueAccent),
+                        color: const Color(0xFF3B82F6).withAlpha(38),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF3B82F6)),
                       ),
                       child: Row(
                         children: const [
-                          Icon(Icons.info_outline, color: Colors.blueAccent),
+                          Icon(Icons.info_outline, color: Color(0xFF3B82F6)),
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Loaded saved workout plan. Edit any day and re-deploy updates.',
                               style: TextStyle(
-                                color: Colors.white,
                                 fontSize: 12,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
@@ -264,10 +297,15 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                     ),
 
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(12),
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white10
+                            : const Color(0xFFE2E8F0),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -277,9 +315,9 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                           children: [
                             Text(
                               'PLAN MONTH: ${DateFormat('MMMM yyyy').format(_startDate).toUpperCase()} ($totalDaysInMonth DAYS)',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey,
+                                color: subTextColor,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -288,10 +326,10 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                               DateFormat(
                                 'EEEE, MMMM dd, yyyy',
                               ).format(_startDate),
-                              style: const TextStyle(
-                                fontSize: 15,
+                              style: TextStyle(
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: textColor,
                               ),
                             ),
                           ],
@@ -299,6 +337,9 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                         TextButton.icon(
                           icon: const Icon(Icons.calendar_month, size: 18),
                           label: const Text('Change'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF3B82F6),
+                          ),
                           onPressed: () async {
                             final chosen = await showDatePicker(
                               context: context,
@@ -322,9 +363,9 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Click any specific day block to edit exercise targets:',
-                    style: TextStyle(fontSize: 12, color: Colors.white70),
+                    style: TextStyle(fontSize: 12, color: subTextColor),
                   ),
                   const SizedBox(height: 12),
 
@@ -345,18 +386,22 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                         );
 
                         return InkWell(
-                          onTap: () => _configureSpecificDayDialog(dayNum),
+                          onTap: () =>
+                              _configureSpecificDayDialog(dayNum, isDark),
                           borderRadius: BorderRadius.circular(12),
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
                               color: isWork
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.red.withOpacity(0.15),
+                                  ? (isDark
+                                        ? const Color(0xFF1E293B)
+                                        : Colors.white)
+                                  : Colors.red.withAlpha(25),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isWork
-                                    ? Colors.blueAccent.withOpacity(0.4)
-                                    : Colors.redAccent.withOpacity(0.3),
+                                    ? const Color(0xFF3B82F6).withAlpha(100)
+                                    : Colors.redAccent.withAlpha(80),
                               ),
                             ),
                             child: Column(
@@ -364,26 +409,26 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                               children: [
                                 Text(
                                   'Day $dayNum',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
-                                    color: Colors.white,
+                                    color: textColor,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   DateFormat('MMM d').format(calculatedDayDate),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 9,
-                                    color: Colors.grey,
+                                    color: subTextColor,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Icon(
                                   isWork ? Icons.fitness_center : Icons.bed,
-                                  size: 12,
+                                  size: 14,
                                   color: isWork
-                                      ? Colors.blueAccent
+                                      ? const Color(0xFF3B82F6)
                                       : Colors.redAccent,
                                 ),
                               ],
@@ -400,7 +445,7 @@ class _AddScheduleScreenState extends State<AddScheduleScreen> {
                     height: 50,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: const Color(0xFF2563EB),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

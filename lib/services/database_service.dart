@@ -415,6 +415,31 @@ class DatabaseService {
       _webGroupMembersCache.removeWhere(
         (m) => m['clientId'] == clientId && m['groupId'] == groupId,
       );
+      final index = _webClientsCache.indexWhere((c) => c.id == clientId);
+      if (index != -1) {
+        final c = _webClientsCache[index];
+        _webClientsCache[index] = ClientModel(
+          id: c.id,
+          name: c.name,
+          phoneNumber: c.phoneNumber,
+          age: c.age,
+          gender: c.gender,
+          startingWeight: c.startingWeight,
+          height: c.height,
+          startingBodyFat: c.startingBodyFat,
+          localProfileImagePath: c.localProfileImagePath,
+          injuries: c.injuries,
+          medicalConditions: c.medicalConditions,
+          experienceLevel: c.experienceLevel,
+          lifestyleType: c.lifestyleType,
+          joinedDate: c.joinedDate,
+          status: c.status,
+          groupId: null,
+          availableDaysPerWeek: c.availableDaysPerWeek,
+          workoutSessionsPerDay: c.workoutSessionsPerDay,
+          fitnessGoal: c.fitnessGoal,
+        );
+      }
       return;
     }
     final db = await instance.database;

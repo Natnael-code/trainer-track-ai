@@ -31,7 +31,6 @@ class ClientProvider with ChangeNotifier {
   Future<void> addClient(ClientModel newClient) async {
     await DatabaseService.instance.insertClient(newClient);
 
-    // Automatically save initial registration step as the first progress entry with photo
     final initialProgress = ClientProgressModel(
       id: 'progress_init_${newClient.id}',
       clientId: newClient.id,
@@ -49,7 +48,6 @@ class ClientProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Adds a group-only member directly to a designated group
   Future<void> addGroupMember({
     required String name,
     required String phoneNumber,
@@ -145,7 +143,6 @@ class ClientProvider with ChangeNotifier {
     }
   }
 
-  // Adds a progress entry for a personal client
   Future<void> addClientProgress(ClientProgressModel progress) async {
     await DatabaseService.instance.insertClientProgress(progress);
     notifyListeners();

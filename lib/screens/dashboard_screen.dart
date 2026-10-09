@@ -23,7 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final String developerEmail = 'developer.support@coachapp.com';
+  final String developerEmail = 'hnatnael73@gmail.com';
 
   @override
   void initState() {
@@ -37,7 +37,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.dispose();
   }
 
-  // --- TOP RIGHT MENU: MODE SWITCH, DEVELOPER EMAIL & BACKUP INFO ---
   void _showSettingsAndBackupBottomSheet(
     BuildContext context,
     ClientProvider provider,
@@ -84,7 +83,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                   const Divider(),
                   const SizedBox(height: 8),
 
-                  // 1. Theme Switch (Dark & Bright Mode)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,
@@ -132,7 +130,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                   const SizedBox(height: 12),
 
-                  // 2. Developer Email Contact Info
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -176,7 +173,6 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                   const SizedBox(height: 12),
 
-                  // 3. Backup Data Explanation & Action
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -184,8 +180,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isDark
-                            ? Colors.blueAccent.withOpacity(0.3)
-                            : Colors.blueAccent.withOpacity(0.2),
+                            ? Colors.blueAccent.withAlpha(80)
+                            : Colors.blueAccent.withAlpha(50),
                       ),
                     ),
                     child: Column(
@@ -250,7 +246,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     content: Text(
                                       'Database backup exported successfully!',
                                     ),
-                                    backgroundColor: Colors.green,
+                                    backgroundColor: Color(0xFF10B981),
                                   ),
                                 );
                               }
@@ -270,7 +266,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // --- TWO-STEP VERIFICATION FOR DELETING PERSONAL CLIENT ---
   void _startDeleteClientFlow(
     BuildContext context,
     ClientModel client,
@@ -337,7 +332,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
         content: Text(
-          'Are u sure this will permantely delete the client?',
+          'Are you sure you want to permanently delete this client?',
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF0F172A),
             fontSize: 15,
@@ -412,7 +407,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ListTile(
               leading: const Icon(
                 Icons.photo_library,
-                color: Colors.blueAccent,
+                color: Color(0xFF3B82F6),
               ),
               title: Text(
                 'Choose from Gallery',
@@ -424,7 +419,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Colors.blueAccent),
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF3B82F6)),
               title: Text(
                 'Take Photo using Camera',
                 style: TextStyle(color: isDark ? Colors.white : Colors.black87),
@@ -569,7 +564,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Text(
                     'Calculated BMI: ${previewBmi.toStringAsFixed(1)}',
                     style: const TextStyle(
-                      color: Colors.green,
+                      color: Color(0xFF10B981),
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
@@ -595,7 +590,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       suffixIcon: IconButton(
                         icon: const Icon(
                           Icons.camera_alt,
-                          color: Colors.blueAccent,
+                          color: Color(0xFF3B82F6),
                         ),
                         onPressed: () => _showImagePickerOptions(
                           context,
@@ -652,7 +647,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       labelText: 'Fitness Goal',
                       border: OutlineInputBorder(),
                     ),
-                    items: ['Lose Weight', 'Gain Weight', 'Maintain Weight']
+                    items: ['Lose Weight', 'Gain Weight', 'boxing']
                         .map(
                           (g) => DropdownMenuItem(
                             value: g,
@@ -738,7 +733,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     height: 48,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: const Color(0xFF2563EB),
                       ),
                       onPressed: isSavingClient
                           ? null
@@ -781,7 +776,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'Save Client Profile',
-                              style: TextStyle(color: Colors.white),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                     ),
                   ),
@@ -858,7 +856,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         IconButton(
                           icon: const Icon(
                             Icons.add_a_photo,
-                            color: Colors.blueAccent,
+                            color: Color(0xFF3B82F6),
                           ),
                           onPressed: () => _showAddProgressLogDialog(
                             client,
@@ -909,8 +907,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: isFirstStep
-                                            ? Colors.blueAccent.withOpacity(0.5)
-                                            : Colors.black12,
+                                            ? const Color(
+                                                0xFF3B82F6,
+                                              ).withAlpha(128)
+                                            : (isDark
+                                                  ? Colors.white10
+                                                  : const Color(0xFFE2E8F0)),
                                       ),
                                     ),
                                     child: Row(
@@ -941,8 +943,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                       ? Icons.app_registration
                                                       : Icons.show_chart,
                                                   color: isFirstStep
-                                                      ? Colors.blueAccent
-                                                      : Colors.green,
+                                                      ? const Color(0xFF3B82F6)
+                                                      : const Color(0xFF10B981),
                                                 ),
                                               ),
                                         const SizedBox(width: 12),
@@ -955,7 +957,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                 stepLabel,
                                                 style: TextStyle(
                                                   color: isFirstStep
-                                                      ? Colors.blueAccent
+                                                      ? const Color(0xFF3B82F6)
                                                       : textColor,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 13,
@@ -1085,7 +1087,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               Text(
                 DateFormat('EEEE, MMMM d, yyyy').format(progress.date),
                 style: const TextStyle(
-                  color: Colors.blueAccent,
+                  color: Color(0xFF3B82F6),
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                 ),
@@ -1143,7 +1145,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         Text(
                           progress.bmi.toStringAsFixed(1),
                           style: const TextStyle(
-                            color: Colors.green,
+                            color: Color(0xFF10B981),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1245,6 +1247,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+            ),
             onPressed: () async {
               double w =
                   double.tryParse(weightCtrl.text) ?? client.startingWeight;
@@ -1275,7 +1280,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 onAdded();
               }
             },
-            child: const Text('Save Entry'),
+            child: const Text(
+              'Save Entry',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1285,7 +1293,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _showAddGroupDialog(bool isDark) {
     final groupNameCtrl = TextEditingController();
     final bgColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final textColor = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
 
     showModalBottomSheet(
       context: context,
@@ -1326,7 +1334,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                ),
                 onPressed: () async {
                   if (groupNameCtrl.text.trim().isEmpty) return;
                   final group = GroupModel(
@@ -1342,7 +1352,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 },
                 child: const Text(
                   'Initialize Cluster Group',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -1377,7 +1390,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              // Top Bar with Greeting + AI Advisor + Settings/Info Icon
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1400,11 +1412,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   Row(
                     children: [
-                      // Launch AI Advisor Screen
                       IconButton(
                         icon: const Icon(
                           Icons.auto_awesome,
-                          color: Colors.blueAccent,
+                          color: Color(0xFF3B82F6),
                           size: 26,
                         ),
                         tooltip: 'TrainerTrack AI Advisor',
@@ -1551,7 +1562,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ? []
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withAlpha(8),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1601,7 +1612,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ? []
             : [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withAlpha(8),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1662,7 +1673,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Text(
                     'Goal: ${client.fitnessGoal} • ${client.availableDaysPerWeek} days/wk',
                     style: const TextStyle(
-                      color: Colors.blueAccent,
+                      color: Color(0xFF3B82F6),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1679,9 +1690,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ),
           ),
-          // Direct Action: Open AI Advisor for this specific Client
           IconButton(
-            icon: const Icon(Icons.auto_awesome, color: Colors.blueAccent),
+            icon: const Icon(Icons.auto_awesome, color: Color(0xFF3B82F6)),
             tooltip: 'Ask AI Advisor for ${client.name}',
             onPressed: () => Navigator.push(
               context,
@@ -1692,12 +1702,12 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.show_chart, color: Colors.green),
+            icon: const Icon(Icons.show_chart, color: Color(0xFF10B981)),
             tooltip: 'View Progress',
             onPressed: () => _showClientProgressDialog(client, isDark),
           ),
           IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+            icon: const Icon(Icons.calendar_month, color: Color(0xFF3B82F6)),
             tooltip: 'Calendar Schedule',
             onPressed: () => Navigator.push(
               context,

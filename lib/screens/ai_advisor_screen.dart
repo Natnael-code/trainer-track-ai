@@ -67,11 +67,13 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     final history = await DatabaseService.instance.fetchAiChatMessagesForClient(
       clientId,
     );
-    setState(() {
-      _chatMessages = history;
-      _isLoadingHistory = false;
-    });
-    _scrollToBottom();
+    if (mounted) {
+      setState(() {
+        _chatMessages = history;
+        _isLoadingHistory = false;
+      });
+      _scrollToBottom();
+    }
   }
 
   void _scrollToBottom() {
@@ -133,7 +135,6 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     }
   }
 
-  // Feature 1: Applies AI Workout Plan to Client Schedule in SQLite
   Future<void> _applyPlanToClientSchedule(
     BuildContext context,
     String messageText,
@@ -150,7 +151,6 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     final List<ScheduleDayModel> deploymentDays = [];
     final List<WorkoutPlanModel> deploymentPlans = [];
 
-    // Simple parser extracting lines from AI recommendation
     List<String> lines = messageText.split('\n');
     String routineTitle = '${_selectedClient!.fitnessGoal} Split';
     List<String> exercisesList = [];
@@ -174,7 +174,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
       final String dayId =
           '${_selectedClient!.id}_day_${dayNum}_${startDate.millisecondsSinceEpoch}';
 
-      bool isWork = dayNum % 2 != 0; // Alternating workout split baseline
+      bool isWork = dayNum % 2 != 0;
 
       final dayNode = ScheduleDayModel(
         id: dayId,
@@ -208,7 +208,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
           content: Text(
             'Applied AI Workout Plan directly to ${_selectedClient!.name}\'s calendar schedule!',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(0xFF10B981),
         ),
       );
     }
@@ -227,18 +227,22 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.auto_awesome, color: Colors.blueAccent),
-            SizedBox(width: 8),
+            const Icon(Icons.auto_awesome, color: Color(0xFF3B82F6)),
+            const SizedBox(width: 8),
             Text(
               'AI Workout & Diet Advisor',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: bgColor,
+        iconTheme: IconThemeData(color: textColor),
         actions: [
           if (_selectedClient != null)
             IconButton(
@@ -256,11 +260,10 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Feature 4: Safety & Medical Disclaimer Banner
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: Colors.amber.withOpacity(0.15),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              color: Colors.amber.withAlpha(35),
               child: Row(
                 children: const [
                   Icon(Icons.health_and_safety, color: Colors.amber, size: 18),
@@ -279,7 +282,6 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
               ),
             ),
 
-            // Feature 3: Select Personal Client Context Dropdown
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: cardBg,
@@ -304,10 +306,10 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                             value: client,
                             child: Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.person_pin,
                                   size: 18,
-                                  color: Colors.blueAccent,
+                                  color: Color(0xFF3B82F6),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -315,6 +317,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                                   style: TextStyle(
                                     color: textColor,
                                     fontSize: 13,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -334,7 +337,6 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
               ),
             ),
 
-            // Quick Action Chips
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -346,9 +348,17 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                       backgroundColor: isDark
                           ? const Color(0xFF1E293B)
                           : const Color(0xFFE2E8F0),
+                      side: BorderSide.none,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                       label: Text(
                         prompt,
-                        style: TextStyle(color: textColor, fontSize: 11),
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       onPressed: () => _sendMessage(prompt),
                     ),
@@ -359,7 +369,6 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
 
             const Divider(height: 1),
 
-            // Chat Messages View
             Expanded(
               child: _isLoadingHistory
                   ? const Center(child: CircularProgressIndicator())
@@ -373,7 +382,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                             const Icon(
                               Icons.psychology,
                               size: 56,
-                              color: Colors.blueAccent,
+                              color: Color(0xFF3B82F6),
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -404,24 +413,24 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                                 : CrossAxisAlignment.start,
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(14),
                                 constraints: BoxConstraints(
                                   maxWidth:
                                       MediaQuery.of(context).size.width * 0.82,
                                 ),
                                 decoration: BoxDecoration(
                                   color: isUser
-                                      ? const Color(0xFF3B82F6)
+                                      ? const Color(0xFF2563EB)
                                       : isDark
                                       ? const Color(0xFF1E293B)
                                       : Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
+                                  borderRadius: BorderRadius.circular(16),
                                   border: isUser
                                       ? null
                                       : Border.all(
                                           color: isDark
                                               ? Colors.white10
-                                              : Colors.black12,
+                                              : const Color(0xFFE2E8F0),
                                         ),
                                 ),
                                 child: Column(
@@ -434,7 +443,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                                         fontWeight: FontWeight.bold,
                                         color: isUser
                                             ? Colors.white70
-                                            : Colors.blueAccent,
+                                            : const Color(0xFF3B82F6),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -448,7 +457,6 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                                         height: 1.4,
                                       ),
                                     ),
-                                    // Feature 1: Quick Action Button to Apply Plan
                                     if (!isUser &&
                                         (msg.text.toLowerCase().contains(
                                               'workout',
@@ -459,7 +467,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                                             msg.text.toLowerCase().contains(
                                               'routine',
                                             ))) ...[
-                                      const SizedBox(height: 10),
+                                      const SizedBox(height: 12),
                                       SizedBox(
                                         width: double.infinity,
                                         child: ElevatedButton.icon(
@@ -468,7 +476,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                                               0xFF10B981,
                                             ),
                                             padding: const EdgeInsets.symmetric(
-                                              vertical: 6,
+                                              vertical: 8,
                                             ),
                                           ),
                                           icon: const Icon(
@@ -481,6 +489,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: Colors.white,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                           onPressed: () =>
@@ -529,7 +538,6 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                 ),
               ),
 
-            // Input TextField Bar
             Container(
               padding: const EdgeInsets.all(10),
               color: cardBg,
@@ -543,12 +551,9 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                         hintText:
                             'Ask AI about ${_selectedClient?.name ?? "client"}...',
                         hintStyle: TextStyle(color: subTextColor, fontSize: 13),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 10,
+                          vertical: 12,
                         ),
                       ),
                       onSubmitted: _sendMessage,
@@ -556,7 +561,7 @@ class _AiAdvisorScreenState extends State<AiAdvisorScreen> {
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: const Color(0xFF2563EB),
                     child: IconButton(
                       icon: const Icon(
                         Icons.send,

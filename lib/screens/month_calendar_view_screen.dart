@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/fitness_models.dart';
+import '../providers/client_provider.dart';
 import '../services/database_service.dart';
 import 'add_schedule_screen.dart';
 
@@ -58,17 +60,19 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
 
     int totalPassed = comp + miss;
 
-    setState(() {
-      _days = data;
-      _completed = comp;
-      _missed = miss;
-      _pending = pend;
-      _complianceRate = totalPassed > 0 ? (comp / totalPassed) * 100 : 0.0;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _days = data;
+        _completed = comp;
+        _missed = miss;
+        _pending = pend;
+        _complianceRate = totalPassed > 0 ? (comp / totalPassed) * 100 : 0.0;
+        _isLoading = false;
+      });
+    }
   }
 
-  void _showReadOnlyDayDialog(ScheduleDayModel day) async {
+  void _showReadOnlyDayDialog(ScheduleDayModel day, bool isDark) async {
     final workoutPlan = await DatabaseService.instance.fetchWorkoutPlanForDay(
       day.id,
     );
@@ -83,20 +87,28 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
 
     if (!mounted) return;
 
+    final dialogBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: dialogBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Icon(
               day.isWorkDay ? Icons.fitness_center : Icons.bed,
-              color: day.isWorkDay ? Colors.blueAccent : Colors.redAccent,
+              color: day.isWorkDay ? const Color(0xFF3B82F6) : Colors.redAccent,
             ),
             const SizedBox(width: 8),
             Text(
               'Day ${day.dayNumber} (${DateFormat('MMM d').format(day.absoluteDate)})',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -111,7 +123,9 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: day.isWorkDay ? Colors.blue[900] : Colors.grey[800],
+                  color: day.isWorkDay
+                      ? const Color(0xFF2563EB)
+                      : Colors.grey[800],
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -135,8 +149,8 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
               const SizedBox(height: 2),
               Text(
                 routine,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: textColor,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -155,12 +169,14 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   exercises,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  style: TextStyle(color: textColor, fontSize: 13),
                 ),
               ),
               if (day.isWorkDay) ...[
@@ -177,10 +193,10 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: day.status == 'Completed'
-                            ? Colors.greenAccent
+                            ? const Color(0xFF10B981)
                             : day.status == 'Missed'
                             ? Colors.redAccent
-                            : Colors.amberAccent,
+                            : Colors.amber,
                       ),
                     ),
                   ],
@@ -215,7 +231,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
             ),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[700],
+                backgroundColor: const Color(0xFF10B981),
               ),
               icon: const Icon(Icons.check, size: 16, color: Colors.white),
               label: const Text(
@@ -241,18 +257,25 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clientProvider = Provider.of<ClientProvider>(context);
+    final isDark = clientProvider.isDarkMode;
+
+    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: bgColor,
       appBar: AppBar(
         title: Text(
           '${widget.entityName}\'s Calendar Ledger',
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: bgColor,
+        iconTheme: IconThemeData(color: textColor),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_calendar, color: Colors.blueAccent),
+            icon: const Icon(Icons.edit_calendar, color: Color(0xFF3B82F6)),
             tooltip: 'Configure / Edit Routine',
             onPressed: () => Navigator.push(
               context,
@@ -280,12 +303,15 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                     color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'No active plan deployed yet.',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: textColor.withAlpha(180)),
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                    ),
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -296,7 +322,10 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                         ),
                       ),
                     ).then((_) => _loadCalendarStream()),
-                    child: const Text('Initialize Monthly Calendar Grid'),
+                    child: const Text(
+                      'Initialize Monthly Calendar Grid',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
@@ -305,27 +334,26 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // Requirement 3: Active Plan Deployed Notification Banner without duplicate edit button text
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.15),
+                      color: const Color(0xFF10B981).withAlpha(35),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.green),
+                      border: Border.all(color: const Color(0xFF10B981)),
                     ),
                     child: Row(
                       children: [
                         const Icon(
                           Icons.check_circle_outline,
-                          color: Colors.greenAccent,
+                          color: Color(0xFF10B981),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Active Plan Deployed (${_days.length} Days)',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textColor,
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
@@ -337,8 +365,13 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white10
+                            : const Color(0xFFE2E8F0),
+                      ),
                     ),
                     child: Column(
                       children: [
@@ -347,7 +380,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.greenAccent,
+                            color: Color(0xFF10B981),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -357,12 +390,12 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                             _buildStatusIndicator(
                               'Completed',
                               '$_completed',
-                              Colors.green,
+                              const Color(0xFF10B981),
                             ),
                             _buildStatusIndicator(
                               'Missed',
                               '$_missed',
-                              Colors.red,
+                              Colors.redAccent,
                             ),
                             _buildStatusIndicator(
                               'Pending',
@@ -386,50 +419,68 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                       itemCount: _days.length,
                       itemBuilder: (context, index) {
                         final day = _days[index];
-                        Color cardColor = const Color(0xFF1E293B);
+                        Color cardColor = cardBg;
                         IconData? statusIcon;
 
                         if (!day.isWorkDay) {
-                          cardColor = Colors.grey[900]!;
+                          cardColor = isDark
+                              ? Colors.grey[900]!
+                              : Colors.grey[200]!;
                         } else {
                           if (day.status == 'Completed') {
-                            cardColor = Colors.green[900]!;
+                            cardColor = const Color(0xFF065F46);
                             statusIcon = Icons.check_circle;
                           } else if (day.status == 'Missed') {
-                            cardColor = Colors.red[900]!;
+                            cardColor = const Color(0xFF991B1B);
                             statusIcon = Icons.cancel;
                           } else {
-                            cardColor = Colors.blueGrey[800]!;
+                            cardColor = isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFE2E8F0);
                             statusIcon = Icons.pending;
                           }
                         }
 
                         return InkWell(
-                          onTap: () => _showReadOnlyDayDialog(day),
+                          onTap: () => _showReadOnlyDayDialog(day, isDark),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             decoration: BoxDecoration(
                               color: cardColor,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white10),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white10
+                                    : const Color(0xFFE2E8F0),
+                              ),
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   'Day ${day.dayNumber}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
-                                    color: Colors.white,
+                                    color:
+                                        (day.isWorkDay &&
+                                            (day.status == 'Completed' ||
+                                                day.status == 'Missed'))
+                                        ? Colors.white
+                                        : textColor,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   DateFormat('MMM d').format(day.absoluteDate),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 9,
-                                    color: Colors.white54,
+                                    color:
+                                        (day.isWorkDay &&
+                                            (day.status == 'Completed' ||
+                                                day.status == 'Missed'))
+                                        ? Colors.white70
+                                        : Colors.grey,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -438,7 +489,7 @@ class _MonthCalendarViewScreenState extends State<MonthCalendarViewScreen> {
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: day.isWorkDay
-                                        ? Colors.blueAccent
+                                        ? const Color(0xFF3B82F6)
                                         : Colors.grey,
                                   ),
                                 ),
